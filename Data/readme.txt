@@ -1,1 +1,1 @@
-Data file directory
+Data directory
