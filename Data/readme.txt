@@ -3,7 +3,7 @@ Data directory
 Download 
 
 기상청-----
-Andong.csv
+Andong daily.csv
 
 모델-----------------
 ERA5_class.nc
