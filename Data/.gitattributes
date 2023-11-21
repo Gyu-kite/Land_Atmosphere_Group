@@ -1,1 +1,7 @@
 *.nc filter=lfs diff=lfs merge=lfs -text
+KIM_diurnal.nc filter=lfs diff=lfs merge=lfs -text
+KIM_daily.nc filter=lfs diff=lfs merge=lfs -text
+KIM_3hourly.nc filter=lfs diff=lfs merge=lfs -text
+ERA_3hourly.nc filter=lfs diff=lfs merge=lfs -text
+ERA_daily.nc filter=lfs diff=lfs merge=lfs -text
+ERA_diurnal.nc filter=lfs diff=lfs merge=lfs -text
