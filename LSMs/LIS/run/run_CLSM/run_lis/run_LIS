@@ -1,0 +1,36 @@
+source /etc/profile.d/modules.sh
+
+module purge
+module load intel21/compiler-21
+module load intel21/mpich-3.4.1
+
+export LIS_FC=mpifort
+export LIS_CC=mpicc
+
+export LIS_JASPER=/usr/local/openjpeg/2.5.0_intel21
+export LIS_NETCDF=/usr/local/netcdf/4.9.2_intel21_parallel
+export LIS_HDF5=/usr/local/hdf5/1.14.6_parallel
+export LIS_HDF4=/usr/local/hdf4/4.3.0_intel21
+export LIS_HDFEOS=/usr/local/hdfeos2/3.0_intel21
+export LIS_ECCODES=/usr/local
+export LIS_MODESMF=/usr/local/esmf/8.7.0_intel21_mpich/mod/modO/Linux.intel.64.mpich.default
+export LIS_LIBESMF=/usr/local/esmf/8.7.0_intel21_mpich/lib/libO/Linux.intel.64.mpich.default
+#export MPICH_OFI_USE_UNIFIED=0
+#export MPICH_ASYNC_PROGRESS=1
+#export MPICH_THREAD_LEVEL=multiple
+export LD_LIBRARY_PATH=\
+${LIS_NETCDF}/lib:\
+${LIS_HDF5}/lib:\
+${LIS_HDF4}/lib:\
+${LIS_HDFEOS}/lib:\
+/usr/local/lib64:\
+${LIS_JASPER}/lib64:\
+${LIS_LIBESMF}:\
+${LD_LIBRARY_PATH}
+#echo $LD_LIBRARY_PATH
+#which mpirun
+#ldd ./LIS_nldas | grep -E "netcdf|hdf|esmf|eccodes"
+
+ulimit -c unlimited
+#mpirun -np 1 gdb ./LIS_251214
+mpirun -np 12 ./CLSM -f lis.config.era5
