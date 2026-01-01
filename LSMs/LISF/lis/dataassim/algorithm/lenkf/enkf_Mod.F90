@@ -70,6 +70,8 @@ module enkf_Mod
      real, allocatable :: anlys_incr(:,:) 
      real, allocatable :: norm_innov(:)
      real, allocatable :: k_gain(:,:)
+     real :: localization_factor = 5.0  ! for localization
+
   end type enkf_dec
 !EOP  
 
@@ -148,6 +150,22 @@ contains
        allocate(enkf_struc(n,k)%anlys_incr(LIS_rc%nstvars(k),&
             LIS_surfaceModel_DAgetStateSpaceSize(n,k)))          
     enddo
+!----------------------------------------------------------------------------
+! Read localization parameters from config file
+!----------------------------------------------------------------------------
+     do n=1,LIS_rc%nnest
+        call ESMF_ConfigGetAttribute(LIS_config, &
+             enkf_struc(n,k)%localization_factor, &
+             label="EnKF localization radius factor:", rc=status)
+        if(status.ne.0) then 
+           enkf_struc(n,k)%localization_factor = 5.0  ! 기본값
+           write(LIS_logunit,*) '[INFO] EnKF localization radius factor not found in config, using default: 5.0'
+        else
+           write(LIS_logunit,*) '[INFO] EnKF localization radius factor set to:', &
+                enkf_struc(n,k)%localization_factor
+        endif
+     enddo
+  
   end subroutine enkf_setup
 
 !BOP
@@ -226,15 +244,19 @@ contains
     integer                           :: N_ens
     integer                           :: N_state
     type(obs_type), allocatable       :: Observations(:)
+    type(obs_type), allocatable       :: Observations_filtered(:)
     type(obs_type), allocatable       :: obs_da(:)
     type(obs_param_type), allocatable :: obs_param(:)
     real,         allocatable         :: Obs_pred(:,:)
+    real,         allocatable         :: Obs_pred_filtered(:,:)
     real,         allocatable         :: obspred_da(:,:)
     real,         allocatable         :: Obs_pert(:,:)
+    real,         allocatable         :: Obs_pert_filtered(:,:)
     real,         allocatable         :: obspert_da(:,:)
     real,         allocatable         :: Obs_cov(:,:)
-    integer                           :: i,v,tileid
+    integer                           :: i,v,tileid,j
     integer                           :: st_id, en_id, sid,eid
+    integer                           :: N_obs_actual
     real,         allocatable         :: stvar(:,:)
     real,         pointer             :: stdata(:)
     real,         pointer             :: stincrdata(:)
@@ -249,6 +271,19 @@ contains
     real                              :: dx,dy,xcompact,ycompact
     real,         allocatable         :: lons(:), lats(:)
     real,         allocatable         :: state_lat(:), state_lon(:)
+
+    ! PDAF-style Local EnKF: local observation selection variables
+    real,         allocatable         :: obs_lon_arr(:), obs_lat_arr(:)
+    integer,      allocatable         :: local_obs_idx(:)
+    integer                           :: N_local_obs
+    real                              :: tile_lon, tile_lat, dist, max_dist
+    integer                           :: local_count
+
+    ! Diagnostic counters for Local EnKF
+    integer                           :: tiles_with_obs, tiles_no_obs
+    integer                           :: total_local_obs_count
+    integer                           :: min_local_obs, max_local_obs
+    real                              :: avg_local_obs
 
 
 !----------------------------------------------------------------------------
@@ -272,8 +307,13 @@ contains
        call LIS_getDomainResolutions(n,dx,dy)
        state_size = LIS_surfaceModel_DAgetStateSpaceSize(n,k)
 
-       xcompact = dx*10.0
-       ycompact = dy*10.0
+       !xcompact = dx*10.0
+       !ycompact = dy*10.0
+       xcompact = dx * enkf_struc(n,k)%localization_factor
+       ycompact = dy * enkf_struc(n,k)%localization_factor
+        
+       write(LIS_logunit,*) '[INFO] EnKF localization radius (degrees): ', &
+           sqrt(xcompact**2 + ycompact**2)
 
        N_state = LIS_rc%nstvars(k)
        N_ens = LIS_rc%nensem(n)
@@ -294,25 +334,153 @@ contains
        Nobs = Nobjs*N_obs_size
        allocate(Observations(Nobs))
 
+       ! ========================================================================
+       ! For true EnKF: Will filter to use only observations with assimflag=1
+       ! ========================================================================
+       write(LIS_logunit,*) '[INFO] EnKF: Total grid points for observations: ', &
+            N_obs_size
+
        call generateObservations(n, k, Nobjs, Nobs, LIS_OBS_State(n,k), &
             LIS_OBS_Pert_State(n,k),Observations)
 
 !----------------------------------------------------------------------------
-!  Retrieve Obs_pred : model's estimate of the observations
+!  Retrieve Obs_pred : model's estimate of the observations (full grid)
 !----------------------------------------------------------------------------
 
-       allocate(Obs_pred(Nobs,N_ens))      
+       allocate(Obs_pred(Nobs,N_ens))
        call LIS_surfaceModel_DAGetObsPred(n,k,Obs_pred)
 
 !----------------------------------------------------------------------------
-!  Retrieve Obs_pert : observation perturbations
-!---------------------------------------------------------------------------- 
+!  Retrieve Obs_pert : observation perturbations (full grid)
+!----------------------------------------------------------------------------
        allocate(Obs_pert(Nobs,N_ens))
        call getObsPert(LIS_OBS_Pert_State(n,k),N_obs_size,&
             Nobs, N_ens, Obs_pert)
 
 !----------------------------------------------------------------------------
-!  Assemble observation covariances. 
+!  Compute and store innovations BEFORE filtering (to preserve spatial order)
+!  This ensures innov/forecast_var have same spatial structure as analysis_residual
+!----------------------------------------------------------------------------
+       if(LIS_rc%winnov(k).eq.1) then
+          do i=1,Nobs
+             if(Observations(i)%assim) then
+                innov = Observations(i)%value - &
+                     sum(Obs_pred(i,:))/real(LIS_rc%nensem(n))
+                ! compute diag(HPHt), put it into std_innov
+                call row_variance(1,LIS_rc%nensem(n),Obs_pred(i,:),std_innov(1))
+                !  add diag (R)
+                enkf_struc(n,k)%forecast_var(i) = std_innov(1)
+                std_innov = std_innov+(Observations(i)%std)**2
+                std_innov = sqrt(std_innov)
+                enkf_struc(n,k)%norm_innov(i) = innov/std_innov(1)
+                enkf_struc(n,k)%innov(i) = innov
+             else
+                enkf_struc(n,k)%norm_innov(i) = LIS_rc%udef
+                enkf_struc(n,k)%innov(i) = LIS_rc%udef
+                enkf_struc(n,k)%forecast_var(i) = LIS_rc%udef
+             endif
+          enddo
+       endif
+
+       ! ========================================================================
+       ! Filter observations: keep only assim=.true. to avoid memory explosion
+       ! Original grid size = 350,589, actual observations ~ 78
+       ! ========================================================================
+       N_obs_actual = 0
+       do i = 1, Nobs
+          if(Observations(i)%assim) then
+             N_obs_actual = N_obs_actual + 1
+          endif
+       enddo
+
+       write(LIS_logunit,*) '[INFO] Total obs in grid: ', Nobs
+       write(LIS_logunit,*) '[INFO] Actual obs with assimflag=1: ', N_obs_actual
+
+       if(N_obs_actual .eq. 0) then
+          write(LIS_logunit,*) '[INFO] No observations with assimflag=1 in this domain'
+          write(LIS_logunit,*) '[INFO] Will set all increments to 0 (MPI sync maintained)'
+          ! Don't return! Continue to tile loop for MPI synchronization
+          ! Deallocate original arrays
+          deallocate(Observations)
+          deallocate(Obs_pred)
+          deallocate(Obs_pert)
+          ! Allocate empty arrays (size 0)
+          N_obs_size = 0
+          Nobs = 0
+          allocate(Observations(0))
+          allocate(Obs_pred(0, N_ens))
+          allocate(Obs_pert(0, N_ens))
+          allocate(obs_lon_arr(0))
+          allocate(obs_lat_arr(0))
+          max_dist = 2.0 * sqrt(xcompact**2 + ycompact**2)
+       else
+          ! Filter observations: keep only assim=.true.
+          allocate(Observations_filtered(N_obs_actual))
+          allocate(Obs_pred_filtered(N_obs_actual, N_ens))
+          allocate(Obs_pert_filtered(N_obs_actual, N_ens))
+
+          j = 1
+          do i = 1, Nobs
+             if(Observations(i)%assim) then
+                Observations_filtered(j) = Observations(i)
+                Obs_pred_filtered(j, :) = Obs_pred(i, :)
+                Obs_pert_filtered(j, :) = Obs_pert(i, :)
+                j = j + 1
+             endif
+          enddo
+
+          ! Replace with filtered versions
+          deallocate(Observations)
+          deallocate(Obs_pred)
+          deallocate(Obs_pert)
+
+          allocate(Observations(N_obs_actual))
+          allocate(Obs_pred(N_obs_actual, N_ens))
+          allocate(Obs_pert(N_obs_actual, N_ens))
+
+          Observations = Observations_filtered
+          Obs_pred = Obs_pred_filtered
+          Obs_pert = Obs_pert_filtered
+
+          deallocate(Observations_filtered)
+          deallocate(Obs_pred_filtered)
+          deallocate(Obs_pert_filtered)
+
+          ! Update N_obs_size and Nobs to actual count
+          N_obs_size = N_obs_actual
+          Nobs = N_obs_actual
+
+          write(LIS_logunit,*) '[INFO] EnKF using actual observations: N_obs_size=', &
+               N_obs_size
+
+!----------------------------------------------------------------------------
+!  PDAF-style Local EnKF: Extract observation lat/lon for distance calculation
+!  and compute max_dist (compact support radius for Gaspari-Cohn)
+!----------------------------------------------------------------------------
+          allocate(obs_lon_arr(N_obs_size))
+          allocate(obs_lat_arr(N_obs_size))
+          do jj=1,N_obs_size
+             obs_lon_arr(jj) = Observations(jj)%lon
+             obs_lat_arr(jj) = Observations(jj)%lat
+          enddo
+
+          ! Gaspari-Cohn compact support: weight=0 when d >= 2
+          ! So max_dist = 2 * sqrt(xcompact^2 + ycompact^2)
+          max_dist = 2.0 * sqrt(xcompact**2 + ycompact**2)
+
+          write(LIS_logunit,*) '[INFO] Local EnKF: max observation distance (deg):', max_dist
+          write(LIS_logunit,*) '[INFO] Local EnKF: total filtered observations:', N_obs_size
+
+          ! DEBUG: Print observation location range
+          write(LIS_logunit,*) '[DEBUG-LENKF] Observation location range:'
+          write(LIS_logunit,*) '[DEBUG-LENKF]   lon: min=', minval(obs_lon_arr), &
+               ' max=', maxval(obs_lon_arr)
+          write(LIS_logunit,*) '[DEBUG-LENKF]   lat: min=', minval(obs_lat_arr), &
+               ' max=', maxval(obs_lat_arr)
+       endif
+
+!----------------------------------------------------------------------------
+!  Assemble observation covariances.
 !----------------------------------------------------------------------------
        allocate(obs_param(LIS_rc%nobtypes(k)))
        call generateObsparam(Nobjs, LIS_OBS_Pert_State(n,k),obs_param)
@@ -336,115 +504,218 @@ contains
 
        call LIS_surfaceModel_getlatlons(n,k,state_size,lats,lons)
 
+       ! DEBUG: Print tile location range
+       write(LIS_logunit,*) '[DEBUG-LENKF] Tile location range:'
+       write(LIS_logunit,*) '[DEBUG-LENKF]   lon: min=', minval(lons), &
+            ' max=', maxval(lons)
+       write(LIS_logunit,*) '[DEBUG-LENKF]   lat: min=', minval(lats), &
+            ' max=', maxval(lats)
+
        state_incr = stvar
-       state_tmp  = stvar     
+       state_tmp  = stvar
+
+       ! Initialize Local EnKF diagnostic counters
+       tiles_with_obs = 0
+       tiles_no_obs = 0
+       total_local_obs_count = 0
+       min_local_obs = 999999
+       max_local_obs = 0
 
        do i=1,state_size/LIS_rc%nensem(n)
 
-          obspred_flag = .true. 
+          obspred_flag = .true.
           tileid = (i-1)*LIS_rc%nensem(n)+1
 
-          call LIS_surfaceModel_DAmapTileSpaceToObsSpace(&
-               n, k, &
-               tileid, st_id, en_id)
+          ! ========================================================================
+          ! PDAF-style Local EnKF: Select only observations within localization radius
+          ! This dramatically reduces computational cost compared to using all obs
+          ! ========================================================================
 
-          if(st_id.lt.0.or.en_id.lt.0) then 
-             assim = .false. 
-          else
-             state_lat(:) = lats(tileid)
-             state_lon(:) = lons(tileid)
+          ! Get tile location
+          tile_lon = lons(tileid)
+          tile_lat = lats(tileid)
+          state_lat(:) = tile_lat
+          state_lon(:) = tile_lon
 
-             N_selected_obs = (en_id-st_id+1)*Nobjs
-             
-             assim = .true.
-             do kk=st_id,en_id
-                assim = assim .and.Observations(kk)%assim
-             enddo
-             
-             allocate(obs_da(N_selected_obs))
-             allocate(obspred_da(N_selected_obs,N_ens))
-             allocate(obspert_da(N_selected_obs,N_ens))
-             allocate(obs_cov(N_selected_obs, N_selected_obs))
-             
-             kk = 1
-             do while(kk.le.N_selected_obs)
-                sid = st_id + (kk-1)*N_obs_size
-                eid = en_id + (kk-1)*N_obs_size
+          ! Count observations within localization radius
+          N_local_obs = 0
+          do jj=1,N_obs_size
+             dist = sqrt((obs_lon_arr(jj)-tile_lon)**2 + (obs_lat_arr(jj)-tile_lat)**2)
+             if(dist < max_dist .and. Observations(jj)%assim) then
+                N_local_obs = N_local_obs + 1
+             endif
+          enddo
 
-                obs_da(kk:kk+(en_id-st_id))       = Observations(sid:eid)
-                obspred_da(kk:kk+(en_id-st_id),:) = Obs_pred(sid:eid,:)
-                obspert_da(kk:kk+(en_id-st_id),:) = Obs_pert(sid:eid,:)
-
-                do jj = kk,kk+(en_id-st_id)
-                   do mm=1,N_ens
-                      if(obspred_da(jj,mm).eq.LIS_rc%udef) then 
-                         obspred_flag = .false. 
-                      endif
-                   enddo
-                enddo
-                
-                kk = kk+(en_id-st_id+1)
-             enddo
-
-             call assemble_obs_cov(LIS_rc%nobtypes(k), N_selected_obs, &
-                  obs_param,obs_da,Obs_cov)
+          ! Skip if no nearby observations
+          if(N_local_obs == 0) then
+             tiles_no_obs = tiles_no_obs + 1
+             state_incr(:,(i-1)*N_ens+1:(i-1)*N_ens+N_ens) = 0.0
+             enkf_struc(n,k)%anlys_incr(:,(i-1)*N_ens+1:(i-1)*N_ens+N_ens) = 0.0
+             cycle
           endif
-          if(assim.and.obspred_flag) then   
 
+          ! Update diagnostic counters
+          tiles_with_obs = tiles_with_obs + 1
+          total_local_obs_count = total_local_obs_count + N_local_obs
+          if(N_local_obs < min_local_obs) min_local_obs = N_local_obs
+          if(N_local_obs > max_local_obs) max_local_obs = N_local_obs
+
+          ! Allocate local observation index array
+          allocate(local_obs_idx(N_local_obs))
+
+          ! Build index of nearby observations
+          local_count = 0
+          do jj=1,N_obs_size
+             dist = sqrt((obs_lon_arr(jj)-tile_lon)**2 + (obs_lat_arr(jj)-tile_lat)**2)
+             if(dist < max_dist .and. Observations(jj)%assim) then
+                local_count = local_count + 1
+                local_obs_idx(local_count) = jj
+             endif
+          enddo
+
+          ! Use only local observations
+          N_selected_obs = N_local_obs
+          assim = .true.
+
+          allocate(obs_da(N_selected_obs))
+          allocate(obspred_da(N_selected_obs,N_ens))
+          allocate(obspert_da(N_selected_obs,N_ens))
+          allocate(obs_cov(N_selected_obs, N_selected_obs))
+
+          ! Fill local observation arrays using index
+          do kk=1,N_local_obs
+             jj = local_obs_idx(kk)
+             obs_da(kk) = Observations(jj)
+             obspred_da(kk,:) = Obs_pred(jj,:)
+             obspert_da(kk,:) = Obs_pert(jj,:)
+
+             ! Check for undefined predictions
+             do mm=1,N_ens
+                if(obspred_da(kk,mm).eq.LIS_rc%udef) then
+                   obspred_flag = .false.
+                endif
+             enddo
+          enddo
+
+          call assemble_obs_cov(LIS_rc%nobtypes(k), N_selected_obs, &
+               obs_param,obs_da,Obs_cov)
+
+          if(assim.and.obspred_flag) then
+
+             ! DEBUG: Print observation statistics (for first 5 tiles WITH observations)
+             if(tiles_with_obs .le. 5) then
+                write(LIS_logunit,*) '[DEBUG-LENKF] =========================================='
+                write(LIS_logunit,*) '[DEBUG-LENKF] Local EnKF Observation Statistics (Tile ', i, '):'
+                write(LIS_logunit,*) '[DEBUG-LENKF]   Tile location: lon=', tile_lon, ' lat=', tile_lat
+                write(LIS_logunit,*) '[DEBUG-LENKF]   Local observations within radius: ', N_local_obs
+                if(N_selected_obs > 0) then
+                   write(LIS_logunit,*) '[DEBUG-LENKF]   Observations (obs_da) MIN: ', &
+                        minval(obs_da(1:N_selected_obs)%value)
+                   write(LIS_logunit,*) '[DEBUG-LENKF]   Observations (obs_da) MAX: ', &
+                        maxval(obs_da(1:N_selected_obs)%value)
+                   write(LIS_logunit,*) '[DEBUG-LENKF]   Observations (obs_da) MEAN: ', &
+                        sum(obs_da(1:N_selected_obs)%value)/N_selected_obs
+                   write(LIS_logunit,*) '[DEBUG-LENKF]   Model prediction (obspred_da) MIN: ', &
+                        minval(obspred_da(1:N_selected_obs,:))
+                   write(LIS_logunit,*) '[DEBUG-LENKF]   Model prediction (obspred_da) MAX: ', &
+                        maxval(obspred_da(1:N_selected_obs,:))
+                   write(LIS_logunit,*) '[DEBUG-LENKF]   Model prediction (obspred_da) MEAN: ', &
+                        sum(obspred_da(1:N_selected_obs,:))/(N_selected_obs*N_ens)
+                   ! Print innovation (obs - model)
+                   write(LIS_logunit,*) '[DEBUG-LENKF]   Innovation (obs-model) approx: ', &
+                        sum(obs_da(1:N_selected_obs)%value)/N_selected_obs - &
+                        sum(obspred_da(1:N_selected_obs,:))/(N_selected_obs*N_ens)
+
+                   ! Print ensemble spread (std dev across ensemble members)
+                   ! For first observation, print all ensemble member values
+                   write(LIS_logunit,*) '[DEBUG-LENKF]   --- Ensemble Spread Analysis ---'
+                   write(LIS_logunit,*) '[DEBUG-LENKF]   First obs - all ensemble members:'
+                   write(LIS_logunit,*) '[DEBUG-LENKF]     ', obspred_da(1,:)
+                   ! Calculate std dev for first observation
+                   write(LIS_logunit,*) '[DEBUG-LENKF]   First obs ensemble mean:', &
+                        sum(obspred_da(1,:))/N_ens
+                   write(LIS_logunit,*) '[DEBUG-LENKF]   First obs ensemble std:', &
+                        sqrt(sum((obspred_da(1,:) - sum(obspred_da(1,:))/N_ens)**2)/(N_ens-1))
+
+                   ! Also check the state vector ensemble spread
+                   write(LIS_logunit,*) '[DEBUG-LENKF]   --- State Vector Ensemble ---'
+                   write(LIS_logunit,*) '[DEBUG-LENKF]   State var 1, all ensemble members:'
+                   write(LIS_logunit,*) '[DEBUG-LENKF]     ', &
+                        state_incr(1, (i-1)*N_ens+1:(i-1)*N_ens+N_ens)
+                   write(LIS_logunit,*) '[DEBUG-LENKF]   State var 1 ensemble std:', &
+                        sqrt(sum((state_incr(1,(i-1)*N_ens+1:(i-1)*N_ens+N_ens) - &
+                        sum(state_incr(1,(i-1)*N_ens+1:(i-1)*N_ens+N_ens))/N_ens)**2)/(N_ens-1))
+                endif
+                write(LIS_logunit,*) '[DEBUG-LENKF] =========================================='
+             endif
+
+! ========================================================================
+! Local EnKF: Call enkf_analysis with only nearby observations
+! Localization (Gaspari-Cohn weighting) is still applied inside enkf_analysis
+! ========================================================================
              call enkf_analysis(gid,N_state,N_selected_obs, N_ens, &
-                  obs_da,                                        & 
+                  obs_da,                                        &
                   obspred_da,                       &
                   obspert_da,                       &
                   Obs_cov,              &
-                  state_incr(:, ((i-1)*N_ens+1):((i-1)*N_ens+N_ens)))
+                  state_incr(:, ((i-1)*N_ens+1):((i-1)*N_ens+N_ens)),&
+                  state_lon, state_lat,xcompact,ycompact)
 
-!turning off the hadamard update temporily (for Hymap DA testing)
-!             call enkf_analysis(gid,N_state,N_selected_obs, N_ens, &
-!                  obs_da,                                        & 
-!                  obspred_da,                       &
-!                  obspert_da,                       &
-!                  Obs_cov,              &
-!                  state_incr(:, ((i-1)*N_ens+1):((i-1)*N_ens+N_ens)),&
-!                  state_lon, state_lat,xcompact,ycompact)
-             
           else
-             state_incr(:,(i-1)*N_ens+1:(i-1)*N_ens+N_ens) = 0.0            
+             state_incr(:,(i-1)*N_ens+1:(i-1)*N_ens+N_ens) = 0.0
           endif
 
           enkf_struc(n,k)%anlys_incr(:,(i-1)*N_ens+1:(i-1)*N_ens+N_ens) = &
                state_incr(:,(i-1)*N_ens+1:(i-1)*N_ens+N_ens)
 
-          if(.not.(st_id.lt.0.or.en_id.lt.0)) then 
-             deallocate(obs_da)
-             deallocate(obspred_da)
-             deallocate(obspert_da)
-             deallocate(obs_cov)
-          endif
-          
+          deallocate(obs_da)
+          deallocate(obspred_da)
+          deallocate(obspert_da)
+          deallocate(obs_cov)
+          deallocate(local_obs_idx)
+
        enddo
+
+!----------------------------------------------------------------------------
+! Local EnKF Summary Statistics
+!----------------------------------------------------------------------------
+       if(tiles_with_obs > 0) then
+          avg_local_obs = real(total_local_obs_count) / real(tiles_with_obs)
+       else
+          avg_local_obs = 0.0
+          min_local_obs = 0
+       endif
+
+       write(LIS_logunit,*) '[INFO] =========================================='
+       write(LIS_logunit,*) '[INFO] Local EnKF Summary:'
+       write(LIS_logunit,*) '[INFO]   Total tiles processed:', &
+            state_size/LIS_rc%nensem(n)
+       write(LIS_logunit,*) '[INFO]   Tiles with local observations:', tiles_with_obs
+       write(LIS_logunit,*) '[INFO]   Tiles without observations:', tiles_no_obs
+       write(LIS_logunit,*) '[INFO]   Min local obs per tile:', min_local_obs
+       write(LIS_logunit,*) '[INFO]   Max local obs per tile:', max_local_obs
+       write(LIS_logunit,*) '[INFO]   Avg local obs per tile:', avg_local_obs
+       write(LIS_logunit,*) '[INFO] =========================================='
 
        call LIS_surfaceModel_DASetFreshIncrementsStatus(n,k,.true.)
 
-       if(LIS_rc%winnov(k).eq.1) then 
-          do i=1,Nobs
-             if(Observations(i)%assim) then
-                innov = Observations(i)%value - &
-                     sum(Obs_pred(i,:))/real(LIS_rc%nensem(n))
-                ! compute diag(HPHt), put it into std_innov
-                call row_variance(1,LIS_rc%nensem(n),Obs_pred(i,:),std_innov(1))
-                !  add diag (R)
-                enkf_struc(n,k)%forecast_var(i) = std_innov(1)
-                std_innov = std_innov+(Observations(i)%std)**2          
-                std_innov = sqrt(std_innov)
-                enkf_struc(n,k)%norm_innov(i) = innov/std_innov(1)
-                enkf_struc(n,k)%innov(i) = innov
-             else
-                enkf_struc(n,k)%norm_innov(i) = LIS_rc%udef
-                enkf_struc(n,k)%innov(i) = LIS_rc%udef
-                enkf_struc(n,k)%forecast_var(i) = LIS_rc%udef
-             endif
-          enddo
-       endif
+       ! NOTE: innov/forecast_var already computed BEFORE observation filtering
+       ! (see code block around line 360) to preserve spatial order matching
+       ! analysis_residual which is computed in enkf_update using original obs order
+
+!----------------------------------------------------------------------------
+! DEBUG: Print analysis increment statistics
+!----------------------------------------------------------------------------
+       write(LIS_logunit,*) '[DEBUG-ENKF] =========================================='
+       write(LIS_logunit,*) '[DEBUG-ENKF] Analysis Increment Statistics:'
+       write(LIS_logunit,*) '[DEBUG-ENKF]   Number of state variables: ', N_state
+       write(LIS_logunit,*) '[DEBUG-ENKF]   Ensemble size: ', LIS_rc%nensem(n)
+       write(LIS_logunit,*) '[DEBUG-ENKF]   Analysis increment MAX: ', maxval(state_incr)
+       write(LIS_logunit,*) '[DEBUG-ENKF]   Analysis increment MIN: ', minval(state_incr)
+       write(LIS_logunit,*) '[DEBUG-ENKF]   Analysis increment MEAN: ', &
+            sum(state_incr) / size(state_incr)
+       write(LIS_logunit,*) '[DEBUG-ENKF] =========================================='
+
 !----------------------------------------------------------------------------
 ! Updating State vector and increments state
 !----------------------------------------------------------------------------
@@ -467,6 +738,8 @@ contains
        deallocate(state_lon)
        deallocate(lats)
        deallocate(lons)
+       deallocate(obs_lon_arr)
+       deallocate(obs_lat_arr)
     end if
     
   end subroutine enkf_increments
@@ -918,11 +1191,12 @@ contains
                ' failed in enkf_Mod')
 #endif
           
-          if(LIS_rc%wopt.eq."1d gridspace") then 
+          if(LIS_rc%wopt.eq."1d gridspace") then
              call LIS_verify(nf90_def_dim(ftn,'ngrid',&
                   LIS_rc%glbngrid_red(n),&
                   dimID(1)),'nf90_def_dim for ngrid failed in enkf_mod')
-          elseif(LIS_rc%wopt.eq."2d gridspace") then 
+          elseif(LIS_rc%wopt.eq."2d gridspace" .or. &
+                 LIS_rc%wopt.eq."2d ensemble gridspace") then
              call LIS_verify(nf90_def_dim(ftn,'east_west',LIS_rc%gnc(n),&
                   dimID(1)),'nf90_def_dim for east_west failed in enkf_mod')
              call LIS_verify(nf90_def_dim(ftn,'north_south',LIS_rc%gnr(n),&
@@ -932,7 +1206,7 @@ contains
           call LIS_verify(nf90_put_att(ftn,&
                NF90_GLOBAL,"missing_value", LIS_rc%udef),&
                'nf90_put_att for missing_value failed in enkf_mod')
-          
+
 !--------------------------------------------------------------------------
 !  Ensemble spread -meta data
 !--------------------------------------------------------------------------
@@ -948,31 +1222,35 @@ contains
                   trim(state_objs(v))//"_"//&
                   trim(finst)
 
-             if(LIS_rc%wopt.eq."1d gridspace") then           
+             if(LIS_rc%wopt.eq."1d gridspace") then
                 call LIS_verify(nf90_def_var(ftn,varname,&
                      nf90_float,&
                      dimids = dimID(1), varID=ensspread_Id(v)),&
                      'nf90_def_var for ensspread failed in enkf_mod')
-                
-             elseif(LIS_rc%wopt.eq."2d gridspace") then 
+
+             elseif(LIS_rc%wopt.eq."2d gridspace" .or. &
+                    LIS_rc%wopt.eq."2d ensemble gridspace") then
                 call LIS_verify(nf90_def_var(ftn,varname,&
                      nf90_float,&
                      dimids = dimID(1:2), varID=ensspread_Id(v)),&
-                     'nf90_def_var for ensspread failed in enkf_mod') 
+                     'nf90_def_var for ensspread failed in enkf_mod')
              endif
-          
+
 #if(defined USE_NETCDF4)
              call LIS_verify(nf90_def_var_deflate(ftn,&
                   ensspread_Id(v),&
                   shuffle, deflate, deflate_level),&
-                  'nf90_def_var_deflate for ensspread failed in enkf_mod')             
+                  'nf90_def_var_deflate for ensspread failed in enkf_mod')
 #endif
              call LIS_verify(nf90_put_att(ftn,ensspread_Id(v),&
                   "standard_name",standard_name),&
                   'nf90_put_att for ensspread failed in enkf_mod')
-             call LIS_verify(nf90_enddef(ftn),&
-                  'nf90_enddef failed in enkf_mod')
           end do
+
+          ! End define mode after all variables are defined
+          call LIS_verify(nf90_enddef(ftn),&
+               'nf90_enddef failed in enkf_mod')
+
           deallocate(state_objs)          
        endif
        
@@ -1058,11 +1336,12 @@ contains
                ' failed in enkf_Mod')
 #endif
           
-          if(LIS_rc%wopt.eq."1d gridspace") then 
+          if(LIS_rc%wopt.eq."1d gridspace") then
              call LIS_verify(nf90_def_dim(ftn,'ngrid',&
                   LIS_rc%glbngrid_red(n),&
                   dimID(1)),'nf90_def_dim for ngrid failed in enkf_mod')
-          elseif(LIS_rc%wopt.eq."2d gridspace") then 
+          elseif(LIS_rc%wopt.eq."2d gridspace" .or. &
+                 LIS_rc%wopt.eq."2d ensemble gridspace") then
              call LIS_verify(nf90_def_dim(ftn,'east_west',LIS_rc%gnc(n),&
                   dimID(1)),'nf90_def_dim for east_west failed in enkf_mod')
              call LIS_verify(nf90_def_dim(ftn,'north_south',LIS_rc%gnr(n),&
@@ -1072,7 +1351,7 @@ contains
           call LIS_verify(nf90_put_att(ftn,&
                NF90_GLOBAL,"missing_value", LIS_rc%udef),&
                'nf90_put_att for missing_value failed in enkf_mod')
-          
+
 !--------------------------------------------------------------------------
 !  Ensemble incr -meta data
 !--------------------------------------------------------------------------
@@ -1088,31 +1367,35 @@ contains
                   trim(state_objs(v))//"_"//&
                   trim(finst)
 
-             if(LIS_rc%wopt.eq."1d gridspace") then           
+             if(LIS_rc%wopt.eq."1d gridspace") then
                 call LIS_verify(nf90_def_var(ftn,varname,&
                      nf90_float,&
                      dimids = dimID(1), varID=incr_Id(v)),&
                      'nf90_def_var for incr failed in enkf_mod')
-                
-             elseif(LIS_rc%wopt.eq."2d gridspace") then 
+
+             elseif(LIS_rc%wopt.eq."2d gridspace" .or. &
+                    LIS_rc%wopt.eq."2d ensemble gridspace") then
                 call LIS_verify(nf90_def_var(ftn,varname,&
                      nf90_float,&
                      dimids = dimID(1:2), varID=incr_Id(v)),&
-                     'nf90_def_var for incr failed in enkf_mod') 
+                     'nf90_def_var for incr failed in enkf_mod')
              endif
-          
+
 #if(defined USE_NETCDF4)
              call LIS_verify(nf90_def_var_deflate(ftn,&
                   incr_Id(v),&
                   shuffle, deflate, deflate_level),&
-                  'nf90_def_var_deflate for incr failed in enkf_mod')             
+                  'nf90_def_var_deflate for incr failed in enkf_mod')
 #endif
              call LIS_verify(nf90_put_att(ftn,incr_Id(v),&
                   "standard_name",standard_name),&
                   'nf90_put_att for incr failed in enkf_mod')
-             call LIS_verify(nf90_enddef(ftn),&
-                  'nf90_enddef failed in enkf_mod')
           end do
+
+          ! End define mode after all variables are defined
+          call LIS_verify(nf90_enddef(ftn),&
+               'nf90_enddef failed in enkf_mod')
+
           deallocate(state_objs)          
        endif
        
