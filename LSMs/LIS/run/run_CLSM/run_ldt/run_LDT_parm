@@ -1,0 +1,52 @@
+source /etc/profile.d/modules.sh
+
+# 모듈 설정`
+module purge
+module load intel21/compiler-21
+module load intel21/mpich-3.4.1
+
+# 아키텍처 지정
+#export LDT_ARCH=Linux_intel_mpich
+export LDT_ARCH=linux_ifc
+# 컴파일러
+export LDT_FC=mpifort
+export LDT_LD=mpifort
+export LDT_CC=mpicc
+
+# 최신 라이브러리 경로
+export LDT_NETCDF=/usr/local/netcdf/4.9.2_intel21_parallel
+export LDT_HDF5=/usr/local/hdf5/1.14.6_parallel
+export LDT_HDF4=/usr/local/hdf4/4.3.0_intel21
+export LDT_HDFEOS=/usr/local/hdfeos2/3.0_intel21
+export LDT_ECCODES=/usr/local/             # eccodes 2.22.0
+export LDT_JASPER=/usr/local/openjpeg/2.5.0_intel21  # openjpeg 사용
+
+# ESMF (최신 빌드된 라이브러리)
+export LDT_MODESMF=/usr/local/esmf/8.7.0_intel21_mpich/mod/modO/Linux.intel.64.mpich.default
+export LDT_LIBESMF=/usr/local/esmf/8.7.0_intel21_mpich/lib/libO/Linux.intel.64.mpich.default
+
+# LD_LIBRARY_PATH 설정
+export LD_LIBRARY_PATH=\
+${LDT_HDF4}/lib:${LDT_HDF5}/lib:${LDT_NETCDF}/lib:\
+${LDT_MODESMF}:${LDT_LIBESMF}:${LDT_HDFEOS}/lib:\
+${LDT_ECCODES}/lib64:${LDT_JASPER}/lib64:${LD_LIBRARY_PATH}
+
+export LD_LIBRARY_PATH=\
+${LDT_NETCDF}/lib:\
+${LDT_HDF5}/lib:\
+${LDT_HDF4}/lib:\
+${LDT_HDFEOS}/lib:\
+/usr/local/lib64:\
+${LDT_JASPER}/lib64:\
+${LDT_LIBESMF}:\
+${LD_LIBRARY_PATH}
+#echo $LD_LIBRARY_PATH
+
+#which mpirun
+
+#ldd ./LDT_nldas | grep -E "netcdf|hdf|esmf|eccodes"
+ulimit -c unlimited
+#mpirun -np 1 gdb ./LDT
+./LDT ldt.config
+#./LDT_gldas ldt.config.noahmp36_params
+tail -f ldtlog.0000
