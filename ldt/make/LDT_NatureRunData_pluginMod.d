@@ -1,0 +1,3 @@
+LDT_NatureRunData_pluginMod.o LDT_NatureRunData_pluginMod.d : LDT_NatureRunData_pluginMod.F90
+LDT_NatureRunData_pluginMod.o : LISoutNatureRun_Mod.o
+LDT_NatureRunData_pluginMod.o : LDT_pluginIndices.o

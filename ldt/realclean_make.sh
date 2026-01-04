@@ -1,0 +1,2 @@
+cd make/
+gmake realclean

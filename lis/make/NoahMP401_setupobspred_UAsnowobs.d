@@ -1,0 +1,3 @@
+NoahMP401_setupobspred_UAsnowobs.o NoahMP401_setupobspred_UAsnowobs.d : NoahMP401_setupobspred_UAsnowobs.F90
+NoahMP401_setupobspred_UAsnowobs.o : LIS_coreMod.o
+NoahMP401_setupobspred_UAsnowobs.o : LIS_logMod.o

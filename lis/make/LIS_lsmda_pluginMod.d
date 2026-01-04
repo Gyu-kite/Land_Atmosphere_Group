@@ -1,0 +1,26 @@
+LIS_lsmda_pluginMod.o LIS_lsmda_pluginMod.d : LIS_lsmda_pluginMod.F90
+LIS_lsmda_pluginMod.o : noah36_dasnow_Mod.o
+LIS_lsmda_pluginMod.o : noahmp401_tws_DAlogMod.o
+LIS_lsmda_pluginMod.o : LIS_plugins.h
+LIS_lsmda_pluginMod.o : noahmp401_dasnodep_Mod.o
+LIS_lsmda_pluginMod.o : noahmp50_dasoilm_Mod.o
+LIS_lsmda_pluginMod.o : noah36_dasoilm_Mod.o
+LIS_lsmda_pluginMod.o : LIS_pluginIndices.o
+LIS_lsmda_pluginMod.o : noahmp36_dasnodep_Mod.o
+LIS_lsmda_pluginMod.o : noahmp401_dasoilm_Mod.o
+LIS_lsmda_pluginMod.o : noahmp401_datws_Mod.o
+LIS_lsmda_pluginMod.o : noahmp401_dausafsi_Mod.o
+LIS_lsmda_pluginMod.o : noahmp50_daveg_Mod.o
+LIS_lsmda_pluginMod.o : noahmp36_datws_Mod.o
+LIS_lsmda_pluginMod.o : noahmp401_daveg_Mod.o
+LIS_lsmda_pluginMod.o : noahmp36_daalbedo_Mod.o
+LIS_lsmda_pluginMod.o : noahmp50_dasnow_Mod.o
+LIS_lsmda_pluginMod.o : noahmp50_dausafsi_Mod.o
+LIS_lsmda_pluginMod.o : noahmp36_dasoilm_Mod.o
+LIS_lsmda_pluginMod.o : noahmp50_tws_DAlogMod.o
+LIS_lsmda_pluginMod.o : noahmp50_dasnodep_Mod.o
+LIS_lsmda_pluginMod.o : noahmp50_datws_Mod.o
+LIS_lsmda_pluginMod.o : noahmp36_daveg_Mod.o
+LIS_lsmda_pluginMod.o : noahmp36_tws_DAlogMod.o
+LIS_lsmda_pluginMod.o : noahmp401_dasnow_Mod.o
+LIS_lsmda_pluginMod.o : noahmp36_dasnow_Mod.o

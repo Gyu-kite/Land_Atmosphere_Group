@@ -1,0 +1,148 @@
+= LISF Documentation
+:lisf-website-url: https://lis.gsfc.nasa.gov/
+:lisf-gh-url: https://github.com/NASA-LIS/LISF
+:lisf-gh-pages-url: https://nasa-lis.github.io/LISF
+:lisf-gh-releases-url: {lisf-gh-url}/releases
+
+
+// HTML passthrough to float LIS logo to the right
+++++
+<img src="public_testcase_walkthrough/images/lisf_logo.png" align="right" width="200px">
+++++
+
+// The paragraphs in this document are written as a single line.  This is an experiment in reducing the amount of reformatting that is often done to text documents to make them nice looking.  A tool like `wdiff` can produce a diff where just the changed words are highlighted.  Each paragraph being a single line should be noticeable only when viewing this document with a text editor like vim.  See the Tips below.
+
+== User Guides
+
+// As documents are added to the docs directory, add a link and brief description to the appropriate section below. This README will also serve as a landing page for the LISF documentation.
+
+* link:{lisf-gh-pages-url}/LISF_installation_guide/LISF_installation_guide.html[LISF Installation Guide]
+* link:{lisf-gh-pages-url}/LDT_users_guide/LDT_users_guide.html[LDT Users`' Guide]
+* link:{lisf-gh-pages-url}/LIS_users_guide/LIS_users_guide.html[LIS Users`' Guide]
+* link:{lisf-gh-pages-url}/LVT_users_guide/LVT_users_guide.html[LVT Users`' Guide]
+
+=== Other Documentation
+
+* link:{lisf-gh-pages-url}/public_testcase_walkthrough/public_testcase_walkthrough.html[Public Testcase Walkthrough]
+* link:{lisf-gh-pages-url}/discover_quick_start/discover_quick_start.html[Quick Start Guide for NCCS Discover Users]
+* link:{lisf-gh-pages-url}/working_with_github/working_with_github.html[LISF Working with GitHub Guide]
+* link:{lisf-gh-pages-url}/howto_create_lis_testcases/howto_create_lis_testcases.html[How to Create a LIS Testcase]
+* link:{lisf-gh-pages-url}/creating_a_custom_modulefile/creating_a_custom_modulefile.html[Creating a Custom Modulefile]
+
+IMPORTANT: The guides linked above are generated from the master branch. To view documentation for releases, visit the link:{lisf-website-url}[LIS website,window=_blank] or the link:{lisf-gh-releases-url}[Releases,window=_blank] page on GitHub (see the <<How to Read LISF Documentation>> section for additional information).
+
+
+== More Information
+
+=== Documentation Format
+
+The LISF documentation is written using AsciiDoc.  Like LaTeX, AsciiDoc is text-based markup, thus it plays nicely with version control systems.  Like LaTeX, AsciiDoc may be processed into other formats like HTML or PDF.  Unlike LaTeX, the AsciiDoc syntax is simple, making the source files both easier to write and easier to read.
+
+
+=== How to Read LISF Documentation
+
+==== Web Browser
+
+===== `master`  branch
+
+Use the links above to view documentation for the master branch directly in your browser.
+
+
+===== Releases
+
+While we recommend using the PDFs generated with each release (see links above), it is also possible to view documentation for the release branches (e.g., `support/*`) in browser.
+
+First, install either the Firefox or Chrome browser and then install the '`Asciidoctor.js Live Preview`' extension.  (Please consult your sysadmin for help.)  With the browser extension installed and enabled, navigate to the NASA-LIS/LISF repository on GitHub. Use the branch selection dropdown menu to select the support branch for the release you are using (e.g., `support/lisf-public-7.3`). Navigate to the directory of the desired documentation and open the `*.adoc` file with the same name as the enclosing directory (e.g., link:https://github.com/NASA-LIS/LISF/blob/support/lisf-public-7.3/docs/LIS_users_guide/LIS_users_guide.adoc[`docs/LIS_users_guide/LIS_users_guide.adoc`,window=_blank]). Click the "Raw" button at the top-right of the document pane. After several seconds the '`Asciidoctor.js Live Preview`' extension will render the document; et voilà, pretty documentation!
+
+If you have the LISF source code on your personal computer you can also view the rendered documentation by dragging the desired document (e.g., `LISF/docs/LIS_users_guide/LIS_users_guide.adoc`) to an open browser window.
+
+
+==== Pager/Editor
+
+Since AsciiDoc is plain text, you may read the LISF documentation using a pager like `more` or `less` or using an editor like <<vim>> or <<emacs>>.  Since the signal to noise ratio is high for AsciiDoc, this method of reading works very well, especially when working on an HPC system where you may not have many fancy tools installed.
+
+
+==== asciidoctor toolset
+
+You can process the AsciiDoc source yourself, using the asciidoctor toolset.  With this toolset, you can generate an HTML or PDF version of the documentation.  If you are masochistic, then you can even generate a DocBook version.  And, then using various DocBook tools, you can render whatever you want.  It is beyond the scope of this README to describe how to install `asciidoctor` and its dependencies.  Please see the asciidoctor website and consult your sysadmin.  This method is *not* recommended for the general LISF user.  The <<Pager/Editor>> and <<Web Browser>> methods are better choices.  Also note that a PDF version of the documentation will be available on the link:{lisf-website-url}[LIS website,window=_blank].  This method is recommended only for documentation writers (LISF developers).
+
+
+=== How to Write
+
+The LISF documentation uses the link:http://asciidoctor.org/[Asciidoctor,window=_blank] implementation of the link:http://asciidoc.org/[AsciiDoc,window=_blank] lightweight markup language.  Please consult link:https://docs.asciidoctor.org/asciidoc/latest/[the AsciiDoc online documentation,window=_blank] for more information.
+
+==== Adding a new Guide to the LISF Documentation
+
+Follow these instructions to add a new guide to the documentation to ensure it is automatically built and deployed to GitHub Pages and, if applicable, converted to PDFs when new releases are published.
+
+1. Create a directory under `LISF/docs/` with the name of your new guide, such as `howto_write_docs/`. If the guide will contain images, create a sub-directory named `images/` (e.g, `howto_write_docs/images`).
+
+2. Create an Asciidoc file in the new directory **with the same name as the enclosing directory** (e.g., `howto_write_docs/howto_write_docs.adoc`).
+
+3. Write the content.
+
+4. If appropriate, add a simple Makefile for rendering the guide to HTML and PDF. See `LIS_users_guide/Makefile` for an example.
+
+5. Add a link to the new guide in `LISF/docs/README.adoc`.
+
+6. This repository has a GitHub Actions workflow that automatically converts the User Guides to PDF when new releases are issued. If the new guide should be converted to PDF and attached to the release, add the name of the enclosing directory to the initialization of the environment variable `GUIDES` in the file `LISF/.github/workflows/build-release-docs.yaml`.
++
+NOTE: Not all guides should be attached to new releases.
+
+
+=== Tips
+
+Here are some tips for reading the LISF documentation using `vim` or `emacs`.  It is beyond the scope of this README to teach how to use either `vim` or `emacs`.  Please consult your local guru for additional help.
+
+
+==== vim
+anchor:vim[vim]
+
+===== Tip 1
+
+Open the documentation in read-only mode, unless of course you actually need to edit it.
+
+....
+% vim -R README
+....
+
+
+===== Tip 2
+
+`vim` understands the AsciiDoc syntax.  After opening the documentation, execute these `vim` command-line mode commands:
+
+....
+:set syntax on
+:autocmd BufRead,BufNewFile *.adoc setfiletype asciidoc
+....
+
+
+===== Tip 3
+
+Each paragraph is written as a single line.  This may look bad in `vim`.  Execute these `vim` command-line mode commands:
+
+....
+:set textwidth=0
+:set wrap
+:set linebreak
+....
+
+The `vim` normal mode commands `j` and `k` move down one line and up one line, respectively.  For this document that is the same as down one paragraph and up one paragraph.  The `vim` normal mode commands `gj` and `gk` respectively move up and down one virtual line.  You should need these movement commands only when editing this document.  When simply reading it, use the `vim` normal mode commands `<C-f>` and `<C-b>` (`vim`-speak for control-f and control-b) to move forward and backwards, respectively, one page at a time.
+
+
+===== Tip 4
+
+Let `vim` help you navigate the documentation.  Whenever you encounter a line like
+
+----
+\include::filename[]
+----
+
+place the cursor on '`filename`' and execute the `vim` normal mode command `gf`.  `vim` will '`goto file`' under the cursor.  Executing `<C-t>` (`vim`-speak for control-t) will take you back.
+
+
+==== emacs
+anchor:emacs[emacs]
+
+You guys don't need my help. :-)
+

@@ -1,0 +1,4 @@
+RunoffSurfaceExcessDynamicVicMod.o RunoffSurfaceExcessDynamicVicMod.d : RunoffSurfaceExcessDynamicVicMod.F90
+RunoffSurfaceExcessDynamicVicMod.o : NoahmpVarType.o
+RunoffSurfaceExcessDynamicVicMod.o : Machine.o
+RunoffSurfaceExcessDynamicVicMod.o : ConstantDefineMod.o

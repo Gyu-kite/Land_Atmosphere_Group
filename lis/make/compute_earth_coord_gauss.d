@@ -1,0 +1,1 @@
+compute_earth_coord_gauss.o compute_earth_coord_gauss.d : compute_earth_coord_gauss.F90

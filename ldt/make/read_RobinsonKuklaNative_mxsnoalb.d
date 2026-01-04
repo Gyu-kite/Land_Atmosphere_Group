@@ -1,0 +1,5 @@
+read_RobinsonKuklaNative_mxsnoalb.o read_RobinsonKuklaNative_mxsnoalb.d : read_RobinsonKuklaNative_mxsnoalb.F90
+read_RobinsonKuklaNative_mxsnoalb.o : LDT_albedoMod.o
+read_RobinsonKuklaNative_mxsnoalb.o : LDT_coreMod.o
+read_RobinsonKuklaNative_mxsnoalb.o : LDT_logMod.o
+read_RobinsonKuklaNative_mxsnoalb.o : LDT_fileIOMod.o

@@ -1,0 +1,3 @@
+set_STATSGOFAO_LIS_texture_attribs.o set_STATSGOFAO_LIS_texture_attribs.d : set_STATSGOFAO_LIS_texture_attribs.F90
+set_STATSGOFAO_LIS_texture_attribs.o : LDT_paramDataMod.o
+set_STATSGOFAO_LIS_texture_attribs.o : LDT_misc.h

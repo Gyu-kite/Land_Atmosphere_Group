@@ -1,0 +1,22 @@
+NoahmpDriverMainMod.o NoahmpDriverMainMod.d : NoahmpDriverMainMod.F90
+NoahmpDriverMainMod.o : WaterVarOutTransferMod.o
+NoahmpDriverMainMod.o : ForcingVarOutTransferMod.o
+NoahmpDriverMainMod.o : BiochemVarInitMod.o
+NoahmpDriverMainMod.o : BiochemVarOutTransferMod.o
+NoahmpDriverMainMod.o : ConfigVarInitMod.o
+NoahmpDriverMainMod.o : EnergyVarInitMod.o
+NoahmpDriverMainMod.o : NoahmpMainGlacierMod.o
+NoahmpDriverMainMod.o : LisNoahmpParamType.o
+NoahmpDriverMainMod.o : BiochemVarInTransferMod.o
+NoahmpDriverMainMod.o : ConfigVarInTransferMod.o
+NoahmpDriverMainMod.o : WaterVarInitMod.o
+NoahmpDriverMainMod.o : NoahmpIOVarType.o
+NoahmpDriverMainMod.o : WaterVarInTransferMod.o
+NoahmpDriverMainMod.o : NoahmpVarType.o
+NoahmpDriverMainMod.o : Machine.o
+NoahmpDriverMainMod.o : EnergyVarOutTransferMod.o
+NoahmpDriverMainMod.o : ForcingVarInTransferMod.o
+NoahmpDriverMainMod.o : ConfigVarOutTransferMod.o
+NoahmpDriverMainMod.o : ForcingVarInitMod.o
+NoahmpDriverMainMod.o : NoahmpMainMod.o
+NoahmpDriverMainMod.o : EnergyVarInTransferMod.o

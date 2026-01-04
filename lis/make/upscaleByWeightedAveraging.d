@@ -1,0 +1,1 @@
+upscaleByWeightedAveraging.o upscaleByWeightedAveraging.d : upscaleByWeightedAveraging.F90

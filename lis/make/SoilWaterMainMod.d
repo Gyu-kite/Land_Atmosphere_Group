@@ -1,0 +1,20 @@
+SoilWaterMainMod.o SoilWaterMainMod.d : SoilWaterMainMod.F90
+SoilWaterMainMod.o : ConstantDefineMod.o
+SoilWaterMainMod.o : RunoffSurfaceXinAnJiangMod.o
+SoilWaterMainMod.o : RunoffSurfaceDynamicVicMod.o
+SoilWaterMainMod.o : Machine.o
+SoilWaterMainMod.o : TileDrainageHooghoudtMod.o
+SoilWaterMainMod.o : SoilWaterDiffusionRichardsMod.o
+SoilWaterMainMod.o : RunoffSubSurfaceShallowMmfMod.o
+SoilWaterMainMod.o : TileDrainageSimpleMod.o
+SoilWaterMainMod.o : NoahmpVarType.o
+SoilWaterMainMod.o : RunoffSurfaceVicMod.o
+SoilWaterMainMod.o : RunoffSubSurfaceGroundWaterMod.o
+SoilWaterMainMod.o : RunoffSurfaceBatsMod.o
+SoilWaterMainMod.o : RunoffSurfaceTopModelGrdMod.o
+SoilWaterMainMod.o : RunoffSurfaceTopModelMmfMod.o
+SoilWaterMainMod.o : RunoffSurfaceFreeDrainMod.o
+SoilWaterMainMod.o : RunoffSubSurfaceEquiWaterTableMod.o
+SoilWaterMainMod.o : RunoffSurfaceTopModelEquiMod.o
+SoilWaterMainMod.o : RunoffSubSurfaceDrainageMod.o
+SoilWaterMainMod.o : SoilMoistureSolverMod.o

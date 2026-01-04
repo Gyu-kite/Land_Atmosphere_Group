@@ -1,0 +1,218 @@
+
+[[sec_build,Building the Executable]]
+== Building the Executable
+
+This section describes how to build the source code and create LIS' executable: named _LIS_.
+
+Please see Section <<sec_important_note_fs>> for information regarding using a case sensitve file system for compiling/running LIS.
+
+=== LISF Dependencies
+
+Please first read the companion document _LISF Installation Guide_.  This document describes the required and optional libraries used by LISF.  It also describes the supported development environments.
+
+=== Build Instructions
+
+:sectnums!: // disable section numbers
+
+==== Step 1
+
+Perform the steps described in Section <<sec_obtain-src>> to obtain the source code.
+
+==== Step 2
+
+Go to the _$WORKING_ directory.  This directory contains two scripts for building the LIS executable: _configure_ and _compile_.
+
+==== Step 3
+
+Set the LIS_ARCH environment variable based on the system you are using.  The following commands are written using Bash shell syntax.
+
+.For a Linux system with the Intel Fortran compiler
+....
+% export LIS_ARCH=linux_ifc
+....
+
+.For a Linux system with the GNU Fortran compiler
+....
+% export LIS_ARCH=linux_gfortran
+....
+
+.For a Cray system with the Intel Fortran compiler
+....
+% export LIS_ARCH=cray_ifc
+....
+
+.For a Cray system with the Cray Fortran compiler
+....
+% export LIS_ARCH=cray_cray
+....
+
+.For an IBM system with the GNU Fortran compiler
+....
+% export LIS_ARCH=ibm_gfortran
+....
+
+//.For an AIX system
+//....
+//% export LIS_ARCH=AIX
+//....
+
+//.For a Linux system with the Absoft Fortran compiler
+//....
+//% export LIS_ARCH=linux_absoft
+//....
+
+//.For a Linux system with the Lahey Fortran compiler
+//....
+//% export LIS_ARCH=linux_lf95
+//....
+
+It is suggested that you set this environment variable in a modulefile footnote:modulefile[See the "`Creating a Custom Modulefile`" document found at {nasalisfpages}] to load or in an environment script to source before compiling and/or running LIS.
+
+==== Step 4
+
+Run the _configure_ script first by typing:
+
+....
+% ./configure
+....
+
+This script will prompt the user with a series of questions regarding support to compile into LIS, requiring the user to specify the locations of the required and optional libraries via several LIS specific environment variables.  The following environment variables are used by LIS.
+
+|====
+| Variable        | Description                      | Usage
+
+| `LIS_FC`        | Fortran 90 compiler              | required
+| `LIS_CC`        | C compiler                       | required
+| `LIS_MODESMF`   | path to ESMF module files        | required
+| `LIS_LIBESMF`   | path to ESMF library files       | required
+| `LIS_OPENJPEG`  | path to openJPEG library         | required
+| `LIS_ECCODES`   | path to ecCodes library          | required
+| `LIS_NETCDF`    | path to NetCDF library           | required
+| `LIS_HDF4`      | path to HDF4 library             | optional (required to use HDFEOS2)
+| `LIS_HDF5`      | path to HDF5 library             | optional
+| `LIS_HDFEOS`    | path to HDFEOS2 library          | optional
+| `LIS_MINPACK`   | path to MINPACK library          | optional
+| `LIS_CRTM`      | path to CRTM library             | optional
+| `LIS_CRTM_PROF` | path to LIS-CRTM Profile library | optional
+| `LIS_CMEM`      | path to LIS-CMEM library         | optional
+| `LIS_LAPACK`    | path to LAPACK library           | optional
+| `LIS_PETSC`     | path to PETSc library            | optional
+| `LIS_JPEG`      | path to JPEG library             | optional (use system libjpeg by default)
+| `LIS_RPC`       | path to RPC library              | optional (use system RPC library by default)
+|====
+
+//{cpp} is C++
+Note that the `CC` variable must be set to a C compiler, not a {cpp} compiler.  A {cpp} compiler may mangle internal names in a manner that is not consistent with the Fortran compiler.  This will cause errors during linking.
+
+It is suggested that you set these environment variables in a modulefile footnote:modulefile[] to load or in an environment script to source before compiling and/or running LIS.
+
+You may encounter errors either when trying to compile LIS or when trying to run LIS because the compiler or operating system cannot find these libraries.  To fix this, you must add these libraries to your `$LD_LIBRARY_PATH` environment variable.  For example, say that you are using ESMF, ecCodes, NetCDF, and HDF5.  Then you must execute the following command (written using Bash shell syntax):
+
+....
+% export LD_LIBRARY_PATH=$LIS_HDF5/lib:$LIS_LIBESMF:$LIS_NETCDF/lib:${LIS_ECCODES}/lib:$LD_LIBRARY_PATH
+....
+
+It is suggested that you set this environment variable in a modulefile footnote:modulefile[] to load or in an environment script to source before compiling and/or running LIS.
+
+===== Example
+
+An example execution of the configure script is shown below:
+
+[subs="attributes,quotes"]
+....
+% ./configure
+------------------------------------------------------------------------
+Setting up configuration for LIS
+Parallelism (0-serial, 1-dmpar, default=1):
+Optimization level (-3=strict checks with warnings, -2=strict checks, -1=debug, 0,1,2,3, default=2):
+Assume little/big_endian data format (1-little, 2-big, default=2):
+Use GRIBAPI/ECCODES? (0-neither, 1-gribapi, 2-eccodes, default=2):
+Enable AFWA-specific grib configuration settings? (1-yes, 0-no, default=0):
+Use NETCDF? (1-yes, 0-no, default=1):
+NETCDF version (3 or 4, default=4):
+NETCDF use shuffle filter? (1-yes, 0-no, default = 1):
+NETCDF use deflate filter? (1-yes, 0-no, default = 1):
+NETCDF use deflate level? (1 to 9-yes, 0-no, default = 9):
+Use HDF4? (1-yes, 0-no, default=1):
+Use HDF5? (1-yes, 0-no, default=1):
+Use HDFEOS? (1-yes, 0-no, default=1):
+Use MINPACK? (1-yes, 0-no, default=0):
+Use LIS-CRTM? (1-yes, 0-no, default=0):
+Use LIS-CMEM? (1-yes, 0-no, default=0):
+Use LIS-LAPACK? (0-no, 1-mkl, 2-lapack/blas, 3-lapack/refblas, default=0):
+Use PETSc? (1-yes, 0-no, default=0):
+-----------------------------------------------------
+ configure.lis file generated successfully
+-----------------------------------------------------
+Settings are written to configure.lis in the make directory.
+If you wish to change settings, please edit that file.
+
+To compile, run the compile script.
+------------------------------------------------------------------------
+....
+
+At each prompt, select the desired value.  If you desire the default value, then you may simply press the Enter key.
+
+Most of the configure options are be self-explanatory.  Here are a few specific notes:
+
+* for `Parallelism (0-serial, 1-dmpar, default=1):`,
+dmpar refers to enabling MPI
+
+//* for `Use openMP parallelism (1-yes, 0-no, default=0):`,
+//select the default value of 0.  OpenMP support is
+//experimental.  Please do not use.
+
+* for `Assume little/big_endian data format (1-little, 2-big, default=2):`,
+select the default value of 2.  By default, LIS reads and writes binary data in the big endian format.  Only select the value of 1, if you have reformatted all required binary data into the little endian format.
+
+* for `Use GRIBAPI/ECCODES? (0-neither, 1-gribapi, 2-eccodes, default=2):`,
+select the default value of 2.  Technically, GRIB support is not required by LIS; however, most of the commonly used met forcing data are in GRIB, making GRIB support a practical requirement.  ecCodes is ECMWF's replacement to their GRIB-API library.  GRIB-API is supported only for historical reasons; thus, please use ecCodes.
++
+IMPORTANT: GRIB-API support is now deprecated.  Future releases will support only ecCodes.
+
+* for `Use LIS-CRTM? (1-yes, 0-no, default=0):`,
+if you wish to enable LIS-CRTM2EM support, then you must also enable LIS-CMEM support.  So for `Use LIS-CMEM? (1-yes, 0-no, default=0):`, you must also select 1.
+
+* for `Use LIS-CMEM? (1-yes, 0-no, default=0):`,
+if you wish to enable LIS-CMEM support, then you must also enable LIS-CRTM.  So for `Use LIS-CRTM? (1-yes, 0-no, default=0):`, you must also select 1.
+
+* for `Use LIS-LAPACK? (0-no, 1-mkl, 2-lapack/blas, 3-lapack/refblas, default=0):`,
+select the type of LAPACK library that you have installed.  This is used with `Use PETSc? (1-yes, 0-no, default=0):`.  If you select 0 for `Use PETSc?`, then select 0 for `Use LIS-LAPACK?`.  If you select 1 for `Use PETSc?`, then select `Use LIS-LAPACK?` according to the following table:
++
+|====
+| Selection | Description
+
+| 0         | No LAPACK needed / Use system LAPACK
+| 1         | LAPACK in Intel MKL
+| 2         | liblapack / libblas
+| 3         | liblapack / librefblas
+|====
++
+For example, on a Cray system using the Cray compilers, select 0 because the linker will find Cray's LAPACK libraries.
+
+Note that due to an issue involving multiple definitions within the NetCDF 3 and HDF 4 libraries, you cannot compile LIS with support for both NetCDF 3 and HDF 4 together.
+
+Note that if you compiled NetCDF 4 without compression, then when specifying `NETCDF version (3 or 4, default=4):`, select 3.  Then you must manually append `-lnetcdff` to the `LDFLAGS` variable in the _make/configure.lis_ file.
+
+==== Step 5
+
+Compile the LIS source code by running the _compile_ script.
+
+....
+% ./compile
+....
+
+This script will compile the libraries provided with LIS, the dependency generator and then the LIS source code. The executable _LIS_ will be placed in the _$WORKING_ directory upon successful completion of the _compile_ script.
+
+==== Step 6
+
+Finally, copy the _LIS_ executable into your running directory, _$RUNNING_.  (See Section <<sec_run>>.)
+
+:sectnums: // re-enable section numbers
+
+include::plugins.adoc[]
+
+//=== Generating documentation
+//
+//The documention in the LIS code uses the ProTex http://gmao.gsfc.nasa.gov/software/protex/ documenting system <<protex>>.  The documentation in LaTeX format can be produced by using the `doc.sh` in the _$WORKING/utils_ directory. This command produces documentation, generating a number of LaTeX files.  These files can be easily converted to pdf using utilites such as `pdflatex`.
+

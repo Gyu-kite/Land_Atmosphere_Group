@@ -1,0 +1,10 @@
+SurfaceEnergyFluxVegetatedMod.o SurfaceEnergyFluxVegetatedMod.d : SurfaceEnergyFluxVegetatedMod.F90
+SurfaceEnergyFluxVegetatedMod.o : VaporPressureSaturationMod.o
+SurfaceEnergyFluxVegetatedMod.o : ResistanceCanopyStomataBallBerryMod.o
+SurfaceEnergyFluxVegetatedMod.o : ConstantDefineMod.o
+SurfaceEnergyFluxVegetatedMod.o : NoahmpVarType.o
+SurfaceEnergyFluxVegetatedMod.o : Machine.o
+SurfaceEnergyFluxVegetatedMod.o : ResistanceCanopyStomataJarvisMod.o
+SurfaceEnergyFluxVegetatedMod.o : ResistanceLeafToGroundMod.o
+SurfaceEnergyFluxVegetatedMod.o : ResistanceAboveCanopyMostMod.o
+SurfaceEnergyFluxVegetatedMod.o : ResistanceAboveCanopyChen97Mod.o

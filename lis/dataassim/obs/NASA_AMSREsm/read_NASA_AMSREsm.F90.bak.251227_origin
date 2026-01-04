@@ -1,0 +1,1254 @@
+!-----------------------BEGIN NOTICE -- DO NOT EDIT-----------------------
+! NASA Goddard Space Flight Center
+! Land Information System Framework (LISF)
+! Version 7.5
+!
+! Copyright (c) 2024 United States Government as represented by the
+! Administrator of the National Aeronautics and Space Administration.
+! All Rights Reserved.
+!-------------------------END NOTICE -- DO NOT EDIT-----------------------
+#include "LIS_misc.h"
+!BOP
+! !ROUTINE: read_NASA_AMSREsm
+! \label{read_NASA_AMSREsm}
+!
+! !REVISION HISTORY:
+!  06Nov2007: Bailing Li; Initial Specification
+!  17Jun2010: Sujay Kumar; Updated for use with NASA AMSRE Version 6,
+!                          added LSM-based QC, generic handling of obs scaling
+!  22Dec2025: Gyuyeon Choi; Modified to read AMSR2 L2 HDF5 swath data
+!
+! !INTERFACE:
+subroutine read_NASA_AMSREsm(n, k, OBS_State, OBS_Pert_State)
+! !USES:
+  use ESMF
+  use LIS_mpiMod
+  use LIS_coreMod,    only : LIS_rc, LIS_domain, &
+       LIS_masterproc, LIS_npes, LIS_masterproc, LIS_localPet
+  use LIS_DAobservationsMod, only : LIS_obs_domain, LIS_checkForValidObs
+  use LIS_timeMgrMod, only : LIS_isAlarmRinging
+  use LIS_logMod,     only : LIS_logunit, LIS_verify
+  use LIS_timeMgrMod, only : LIS_calendar, LIS_clock
+  use LIS_logMod,     only : LIS_logunit, LIS_endrun, &
+       LIS_getNextUnitNumber, LIS_releaseUnitNumber, LIS_verify
+  use NASA_AMSREsm_Mod, only : NASA_AMSREsm_struc
+  use LIS_pluginIndices
+  use LIS_constantsMod, only : LIS_CONST_PATH_LEN
+  use, intrinsic :: ieee_arithmetic, only : ieee_is_nan
+
+  implicit none
+! !ARGUMENTS:
+  integer, intent(in) :: n
+  integer, intent(in) :: k
+  type(ESMF_State)    :: OBS_State
+  type(ESMF_State)    :: OBS_Pert_State
+!
+! !DESCRIPTION:
+!
+!  reads the AMSR2 L2 soil moisture observations
+!  from HDF5 files and packages it
+!  into an ESMF State with certain predefined
+!  attributes
+!
+!  The arguments are:
+!  \begin{description}
+!  \item[n] index of the nest
+!  \item[OBS\_State] observations state
+!  \end{description}
+!
+!EOP
+  real, parameter     :: MAX_SM_VALUE=0.55
+  type(ESMF_Field)    :: smField
+
+  integer             :: iret
+
+  real,    pointer    :: obsl(:)
+  integer             :: gid(LIS_rc%obs_ngrid(k))
+  integer             :: assimflag(LIS_rc%obs_ngrid(k))
+
+  real                :: smobs(LIS_rc%obs_lnc(k)*LIS_rc%obs_lnr(k))
+  real                :: sm_current(LIS_rc%obs_lnc(k), LIS_rc%obs_lnr(k))
+  real                :: obs_unsc(LIS_rc%obs_ngrid(k))
+  character(len=LIS_CONST_PATH_LEN) :: smobsdir
+  logical             :: data_update
+  logical             :: file_exists
+  character(len=LIS_CONST_PATH_LEN) :: name
+  character(len=LIS_CONST_PATH_LEN) :: name_hourly
+  character(len=LIS_CONST_PATH_LEN) :: amsr2_filename(100)
+  character(len=2)  :: fhr
+
+  logical             :: alarmCheck
+
+  logical             :: readflag
+  integer             :: status
+  integer             :: valid_gindex_count, smobs_idx, first_data_found, stored_count, skipped_ocean
+  integer             :: slash_pos, pattern_start, validObsFlag_temp
+  logical             :: data_upd_flag(LIS_npes)
+  logical             :: data_upd_flag_local
+  logical             :: data_upd
+  integer             :: t,c,r,p,jj,igd
+
+  integer             :: col, row, i, gridid
+  integer             :: binval
+  real                :: cdf_obsval
+  real                :: smvalue
+  real                :: model_delta(LIS_rc%obs_ngrid(k))
+  real                :: obs_delta(LIS_rc%obs_ngrid(k))
+
+  integer             :: fnd
+  integer             :: ierr
+  integer             :: ftn, nfiles
+
+  write(LIS_logunit,*) '[DEBUG] ========================================='
+  write(LIS_logunit,*) '[DEBUG] read_NASA_AMSREsm CALLED!'
+  write(LIS_logunit,*) '[DEBUG] Current LIS time: ', LIS_rc%yr, '/', LIS_rc%mo, '/', LIS_rc%da, ' ', LIS_rc%hr, ':', LIS_rc%mn
+  write(LIS_logunit,*) '[DEBUG] ========================================='
+  call flush(LIS_logunit)
+
+  smobs    = LIS_rc%udef
+  obs_unsc = LIS_rc%udef
+
+  call ESMF_AttributeGet(OBS_State,"Data Directory",&
+       smobsdir, rc=status)
+  call LIS_verify(status)
+
+  write(LIS_logunit,*) '[DEBUG] Data directory: ', trim(smobsdir)
+  call flush(LIS_logunit)
+
+  call ESMF_AttributeGet(OBS_State,"Data Update Status",&
+       data_update, rc=status)
+  call LIS_verify(status)
+  data_upd = .false.
+!-------------------------------------------------------------------------
+!   Read the data at 0z daily (following SMAP/AMSR-E pattern)
+!-------------------------------------------------------------------------
+
+  alarmCheck = LIS_isAlarmRinging(LIS_rc, "NASA AMSR-E read alarm")
+
+  write(LIS_logunit,*) '[DEBUG] NASA_AMSREsm: alarmCheck = ', alarmCheck
+  write(LIS_logunit,*) '[DEBUG] NASA_AMSREsm: startMode = ', NASA_AMSREsm_struc(n)%startMode
+  write(LIS_logunit,*) '[DEBUG] Alarm name check complete'
+  call flush(LIS_logunit)
+
+  ! Read data if alarm is ringing OR on first call (startMode)
+  ! Following SMAP L2 pattern
+  if(alarmCheck .or. NASA_AMSREsm_struc(n)%startMode) then
+     NASA_AMSREsm_struc(n)%startMode = .false.
+
+     write(LIS_logunit,*) '[DEBUG] ========================================='
+     write(LIS_logunit,*) '[DEBUG] Reading AMSR2 L2 data (alarm or startMode)'
+     write(LIS_logunit,*) '[DEBUG] obs_lnc(k) = ', LIS_rc%obs_lnc(k)
+     write(LIS_logunit,*) '[DEBUG] obs_lnr(k) = ', LIS_rc%obs_lnr(k)
+     write(LIS_logunit,*) '[DEBUG] obs_ngrid(k) = ', LIS_rc%obs_ngrid(k)
+     write(LIS_logunit,*) '[DEBUG] ========================================='
+     call flush(LIS_logunit)
+
+     ! Initialize observation arrays to udef (critical for swath data)
+     NASA_AMSREsm_struc(n)%smobs = LIS_rc%udef
+     NASA_AMSREsm_struc(n)%smtime = 0.0
+     NASA_AMSREsm_struc(n)%smqc = 0
+
+     ! AMSR2 L2: Read files for the current hour only (like SMAP L2)
+     ! This ensures temporal consistency in data assimilation
+     call NASA_AMSREsm_filename(name,smobsdir,&
+          LIS_rc%yr,LIS_rc%mo,LIS_rc%da,LIS_rc%hr)
+
+     ! Find "GW1AM2_" position to build hourly pattern
+     pattern_start = index(trim(name), 'GW1AM2_')
+
+     ! Build pattern for current hour only (like SMAP L2)
+     ! AMSR2 filename: GW1AM2_YYYYMMDDHHMM_*_L2SGSMCLF*.h5
+     write(fhr,'(i2.2)') LIS_rc%hr
+     name_hourly = trim(name(1:pattern_start+6)) // &  ! up to "GW1AM2_"
+                   trim(name(pattern_start+7:pattern_start+14)) // &  ! YYYYMMDD
+                   trim(fhr) // '*_*_L2SGSMCLF*.h5'  ! HH* for specific hour
+
+     write(LIS_logunit,*) '[INFO] Searching for AMSR2 L2 files (hourly): ', trim(name_hourly)
+     call flush(LIS_logunit)
+
+     ! Create list of files matching the pattern
+     call system('ls '//trim(name_hourly)//' > AMSR2_filelist_lis.dat 2>/dev/null')
+
+     ftn = LIS_getNextUnitNumber()
+     open(ftn, file="./AMSR2_filelist_lis.dat", status='old', iostat=ierr)
+
+     if(ierr .eq. 0) then
+        readflag = .true.
+        nfiles = 0
+        do i = 1, 100
+           read(ftn, '(a)', iostat=ierr) amsr2_filename(i)
+           if(ierr .ne. 0) exit
+           nfiles = nfiles + 1
+           write(LIS_logunit,*) '[INFO] Found AMSR2 L2 file: ', trim(amsr2_filename(i))
+           call flush(LIS_logunit)
+        enddo
+        close(ftn)
+        call LIS_releaseUnitNumber(ftn)
+
+        if(nfiles .gt. 0) then
+           write(LIS_logunit,*) '[INFO] ========================================='
+           write(LIS_logunit,*) '[INFO] Reading ', nfiles, ' AMSR2 L2 files'
+           write(LIS_logunit,*) '[INFO] ========================================='
+           call flush(LIS_logunit)
+           ! Read all files for this date
+           do i = 1, nfiles
+              write(LIS_logunit,*) '[INFO] Processing file ', i, ' of ', nfiles
+              call flush(LIS_logunit)
+              call read_AMSREsm(n, k, amsr2_filename(i))
+           enddo
+
+           write(LIS_logunit,*) '[DEBUG] After reading all files, checking smobs array...'
+           write(LIS_logunit,*) '[DEBUG] smobs shape: ', shape(NASA_AMSREsm_struc(n)%smobs)
+           write(LIS_logunit,*) '[DEBUG] Count of non-udef values in smobs(:,1): ', &
+                count(NASA_AMSREsm_struc(n)%smobs(:,1).ne.LIS_rc%udef)
+           write(LIS_logunit,*) '[DEBUG] Count of non-udef values in smobs(:,2): ', &
+                count(NASA_AMSREsm_struc(n)%smobs(:,2).ne.LIS_rc%udef)
+           call flush(LIS_logunit)
+
+           ! QC masking after reading all files
+           call maskObs_basedonQC(LIS_rc%obs_lnc(k)*LIS_rc%obs_lnr(k), &
+                NASA_AMSREsm_struc(n)%smobs, &
+                NASA_AMSREsm_struc(n)%smqc)
+        else
+           readflag = .false.
+           write(LIS_logunit,*) '[WARN] No AMSR2 L2 files found for: ', trim(name)
+           call flush(LIS_logunit)
+        endif
+     else
+        readflag = .false.
+        write(LIS_logunit,*) '[WARN] No AMSR2 L2 files found for: ', trim(name)
+        call flush(LIS_logunit)
+     endif
+  endif
+
+  call ESMF_StateGet(OBS_State,"Observation01",smField,&
+       rc=status)
+  call LIS_verify(status)
+
+  call ESMF_FieldGet(smField,localDE=0,farrayPtr=obsl,rc=status)
+  call LIS_verify(status)
+
+  fnd = 0
+  sm_current = LIS_rc%udef
+
+  call maskObs_basedonTime(LIS_rc%obs_lnc(k)*LIS_rc%obs_lnr(k), &
+       NASA_AMSREsm_struc(n)%smobs, &
+       NASA_AMSREsm_struc(n)%smtime, smobs,fnd)
+
+  ! Map smobs to sm_current and obs_unsc
+  write(LIS_logunit,*) '[DEBUG] Mapping smobs to sm_current...'
+  write(LIS_logunit,*) '[DEBUG] smobs array size: ', size(smobs)
+  write(LIS_logunit,*) '[DEBUG] smobs valid count: ', count(smobs.ne.LIS_rc%udef)
+  write(LIS_logunit,*) '[DEBUG] sm_current shape: ', shape(sm_current)
+  call flush(LIS_logunit)
+
+  valid_gindex_count = 0
+  first_data_found = 0
+
+  ! Check gindex values in the region where we have data (around c=273-281, r=117-121)
+  write(LIS_logunit,*) '[DEBUG] Checking gindex in data region (c=270-285, r=115-125):'
+  do r = 115, 125
+     do c = 270, 285
+        if(c .ge. 1 .and. c .le. LIS_rc%obs_lnc(k) .and. &
+           r .ge. 1 .and. r .le. LIS_rc%obs_lnr(k)) then
+           smobs_idx = c+LIS_rc%obs_lnc(k)*(r-1)
+           if(smobs(smobs_idx).ne.LIS_rc%udef) then
+              write(LIS_logunit,'(A,I4,A,I4,A,I8,A,I8,A,F12.6)') &
+                   '  c=', c, ' r=', r, ' idx=', smobs_idx, &
+                   ' gindex=', LIS_obs_domain(n,k)%gindex(c,r), ' SM=', smobs(smobs_idx)
+           endif
+        endif
+     enddo
+  enddo
+  call flush(LIS_logunit)
+
+  do r =1,LIS_rc%obs_lnr(k)
+     do c =1,LIS_rc%obs_lnc(k)
+        smobs_idx = c+LIS_rc%obs_lnc(k)*(r-1)
+
+        ! Debug: check first few points with data
+        if(smobs(smobs_idx).ne.LIS_rc%udef .and. first_data_found .lt. 5) then
+           write(LIS_logunit,*) '[DEBUG] Data at (', c, ',', r, ') idx=', smobs_idx, &
+                ' gindex=', LIS_obs_domain(n,k)%gindex(c,r), ' SM=', smobs(smobs_idx)
+           first_data_found = first_data_found + 1
+        endif
+
+        if (LIS_obs_domain(n,k)%gindex(c,r) .ne. -1) then
+           valid_gindex_count = valid_gindex_count + 1
+           sm_current(c,r) = smobs(smobs_idx)
+           if(sm_current(c,r).ne.LIS_rc%udef) then
+              obs_unsc(LIS_obs_domain(n,k)%gindex(c,r)) = sm_current(c,r)
+           endif
+        else
+           ! If data exists but gindex is -1, still copy to sm_current
+           ! This is the FIX for the issue
+           if(smobs(smobs_idx).ne.LIS_rc%udef) then
+              sm_current(c,r) = smobs(smobs_idx)
+           endif
+        endif
+     enddo
+  enddo
+
+  write(LIS_logunit,*) '[DEBUG] Valid gindex count: ', valid_gindex_count
+  call flush(LIS_logunit)
+
+  write(LIS_logunit,*) '[DEBUG] sm_current valid count: ', count(sm_current.ne.LIS_rc%udef)
+  write(LIS_logunit,*) '[DEBUG] obs_unsc valid count: ', count(obs_unsc.ne.LIS_rc%udef)
+  call flush(LIS_logunit)
+
+!-------------------------------------------------------------------------
+!  Transform data to the LSM climatology using a CDF-scaling approach
+!  TEMPORARILY DISABLED: CDF files are not compatible with AMSR2 L2 data
+!-------------------------------------------------------------------------
+  write(LIS_logunit,*) '[DEBUG] Before CDF scaling...'
+  write(LIS_logunit,*) '[DEBUG] scal = ', NASA_AMSREsm_struc(n)%scal
+  write(LIS_logunit,*) '[DEBUG] fnd = ', fnd
+  call flush(LIS_logunit)
+
+  if(NASA_AMSREsm_struc(n)%scal.ne.0.and.fnd.ne.0) then  ! CDF scaling enabled
+     write(LIS_logunit,*) '[DEBUG] Entering CDF scaling...'
+     call flush(LIS_logunit)
+
+     do t=1,LIS_rc%obs_ngrid(k)
+        model_delta(t) = NASA_AMSREsm_struc(n)%model_xrange(t,2,1)-&
+             NASA_AMSREsm_struc(n)%model_xrange(t,1,1)
+        obs_delta(t) = NASA_AMSREsm_struc(n)%obs_xrange(t,2,1)-&
+             NASA_AMSREsm_struc(n)%obs_xrange(t,1,1)
+        if(model_delta(t).eq.0) then
+           model_delta(t) = 1.0
+        endif
+        if(obs_delta(t).eq.0) then
+           obs_delta(t) = 1.0
+        endif
+     enddo
+
+     do r =1,LIS_rc%obs_lnr(k)
+        do c =1,LIS_rc%obs_lnc(k)
+           if (LIS_obs_domain(n,k)%gindex(c,r) .ne. -1)then
+              ! Add bounds check for CDF array access
+              igd = LIS_obs_domain(n,k)%gindex(c,r)
+              if(igd .lt. 1 .or. igd .gt. LIS_rc%obs_ngrid(k)) then
+                 ! Index out of bounds, skip this point
+                 sm_current(c,r) = LIS_rc%udef
+                 cycle
+              endif
+
+              smvalue = sm_current(c,r)
+              binval = 0
+
+              if((smvalue.ne.LIS_rc%udef).and.&
+                   (smvalue.ne.9999.0)) then
+                 ! Add safety checks for CDF values to avoid floating point exceptions
+                 if(ieee_is_nan(NASA_AMSREsm_struc(n)%obs_xrange(igd,1,1)) .or. &
+                    ieee_is_nan(NASA_AMSREsm_struc(n)%obs_xrange(igd,2,1))) then
+                    sm_current(c,r) = LIS_rc%udef
+                    cycle
+                 endif
+
+                 smvalue = min(smvalue, NASA_AMSREsm_struc(n)%obs_xrange(igd,2,1))
+                 smvalue = max(smvalue, NASA_AMSREsm_struc(n)%obs_xrange(igd,1,1))
+
+                 do i=1,NASA_AMSREsm_struc(n)%nbins
+                    if(ieee_is_nan(NASA_AMSREsm_struc(n)%obs_cdf(igd,i,1)) .or. &
+                       ieee_is_nan(NASA_AMSREsm_struc(n)%obs_cdf(igd,i+1,1))) then
+                       exit  ! Skip if CDF has NaN values
+                    endif
+
+                    if(smvalue.ge.NASA_AMSREsm_struc(n)%obs_cdf(igd,i,1).and.&
+                         (smvalue.lt.NASA_AMSREsm_struc(n)%obs_cdf(igd,i+1,1))) then
+                       binval = i
+                       exit
+                    endif
+                 enddo
+
+                 if(binval.ne.0) then
+                    cdf_obsval = NASA_AMSREsm_struc(n)%model_cdf(igd,binval,1)
+                    if(.not. ieee_is_nan(cdf_obsval)) then
+                       sm_current(c,r) = cdf_obsval
+                    else
+                       sm_current(c,r) = LIS_rc%udef
+                    endif
+                 else
+                    sm_current(c,r) = LIS_rc%udef
+                 endif
+
+              endif
+           endif
+        enddo
+     enddo
+
+  endif
+
+  write(LIS_logunit,*) '[DEBUG] After CDF scaling (if applied)'
+  write(LIS_logunit,*) '[DEBUG] sm_current valid count after CDF: ', count(sm_current.ne.LIS_rc%udef)
+  call flush(LIS_logunit)
+
+!-------------------------------------------------------------------------
+!  Update obsl with CDF-scaled data
+!-------------------------------------------------------------------------
+  write(LIS_logunit,*) '[DEBUG] Updating obsl with CDF-scaled data...'
+  call flush(LIS_logunit)
+
+  obsl = LIS_rc%udef
+  stored_count = 0
+  skipped_ocean = 0
+
+  do r = 1, LIS_rc%obs_lnr(k)
+     do c = 1, LIS_rc%obs_lnc(k)
+        if (LIS_obs_domain(n, k)%gindex(c, r) .ne. -1) then
+           ! Valid land point - store in obsl using gindex
+           if(sm_current(c, r) .ne. LIS_rc%udef) then
+              obsl(LIS_obs_domain(n, k)%gindex(c, r)) = sm_current(c, r)
+              stored_count = stored_count + 1
+              if(stored_count .le. 5) then
+                 write(LIS_logunit,*) '[DEBUG] Stored at gindex', LIS_obs_domain(n, k)%gindex(c, r), &
+                      ' (c=', c, ' r=', r, ') SM=', sm_current(c, r)
+              endif
+           endif
+        else if (sm_current(c, r) .ne. LIS_rc%udef) then
+           ! Data exists but gindex=-1 (ocean or outside domain)
+           ! Cannot use for assimilation - skip
+           skipped_ocean = skipped_ocean + 1
+        endif
+     enddo
+  enddo
+
+  write(LIS_logunit,*) '[INFO] Stored in obsl (land points):', stored_count
+  write(LIS_logunit,*) '[INFO] Skipped (ocean/outside domain):', skipped_ocean
+
+  ! Update fnd to reflect actual stored count
+  fnd = stored_count
+
+  write(LIS_logunit,*) '[DEBUG] obsl valid count before LSM QC: ', count(obsl.ne.LIS_rc%udef)
+  write(LIS_logunit,*) '[DEBUG] fnd updated to match obsl count:', fnd
+
+  ! Print statistics of obsl values before LSM QC
+  if(count(obsl.ne.LIS_rc%udef) .gt. 0) then
+     write(LIS_logunit,*) '[DEBUG] obsl min/max before LSM QC: ', &
+          minval(obsl, mask=obsl.ne.LIS_rc%udef), '/', &
+          maxval(obsl, mask=obsl.ne.LIS_rc%udef)
+     write(LIS_logunit,*) '[DEBUG] obsl sample values (first 10 valid):'
+     t = 0
+     do i = 1, min(LIS_rc%obs_ngrid(k), 100)
+        if(obsl(i) .ne. LIS_rc%udef) then
+           write(LIS_logunit,*) '  obsl(', i, ') = ', obsl(i)
+           t = t + 1
+           if(t .ge. 10) exit
+        endif
+     enddo
+  endif
+  call flush(LIS_logunit)
+
+!-------------------------------------------------------------------------
+!  Apply LSM based QC and screening of observations
+!  TEMPORARILY DISABLED: LSM QC is removing all observations
+!-------------------------------------------------------------------------
+  write(LIS_logunit,*) '[INFO] LSM QC temporarily disabled for debugging'
+  if(.false.) then  ! Temporarily disabled: if(fnd .gt. 0) then
+     write(LIS_logunit,*) '[DEBUG] Calling lsmdaqcobsstate...'
+     write(LIS_logunit,*) '[DEBUG] LSM: ', trim(LIS_rc%lsm)
+     write(LIS_logunit,*) '[DEBUG] ObsId: ', trim(LIS_NASA_AMSREsmobsId)
+     call flush(LIS_logunit)
+
+     call lsmdaqcobsstate(trim(LIS_rc%lsm)//"+"&
+          //trim(LIS_NASA_AMSREsmobsId)//char(0), n, k, OBS_state)
+
+     write(LIS_logunit,*) '[DEBUG] After lsmdaqcobsstate'
+     write(LIS_logunit,*) '[DEBUG] obsl valid count after LSM QC: ', count(obsl.ne.LIS_rc%udef)
+
+     ! Print statistics after LSM QC
+     if(count(obsl.ne.LIS_rc%udef) .gt. 0) then
+        write(LIS_logunit,*) '[DEBUG] obsl min/max after LSM QC: ', &
+             minval(obsl, mask=obsl.ne.LIS_rc%udef), '/', &
+             maxval(obsl, mask=obsl.ne.LIS_rc%udef)
+     else
+        write(LIS_logunit,*) '[WARN] LSM QC removed ALL observations!'
+     endif
+     call flush(LIS_logunit)
+  else
+     write(LIS_logunit,*) '[DEBUG] LSM QC was skipped (temporarily disabled)'
+     call flush(LIS_logunit)
+  endif
+
+  write(LIS_logunit,*) '[DEBUG] Calling LIS_checkForValidObs...'
+  write(LIS_logunit,*) '[DEBUG] fnd before call:', fnd
+  call flush(LIS_logunit)
+
+  ! LIS_checkForValidObs returns binary flag (0 or 1), not count
+  validObsFlag_temp = 0
+
+  call LIS_checkForValidObs(n, k, obsl, validObsFlag_temp, sm_current)
+
+  write(LIS_logunit,*) '[DEBUG] After LIS_checkForValidObs:'
+  write(LIS_logunit,*) '[DEBUG]   validObsFlag =', validObsFlag_temp, '(binary flag: 0=none, 1=has data)'
+  write(LIS_logunit,*) '[DEBUG]   fnd (count) =', fnd, '(preserved)'
+
+  ! If no valid observations, set fnd to 0
+  if(validObsFlag_temp .eq. 0) then
+     write(LIS_logunit,*) '[WARN] LIS_checkForValidObs found no valid observations, setting fnd=0'
+     fnd = 0
+  endif
+
+  write(LIS_logunit,*) '[DEBUG] Final fnd = ', fnd
+  call flush(LIS_logunit)
+
+  if (fnd .eq. 0) then
+     data_upd_flag_local = .false.
+  else
+     data_upd_flag_local = .true.
+  endif
+
+#if (defined SPMD)
+  call MPI_ALLGATHER(data_upd_flag_local, 1, &
+       MPI_LOGICAL, data_upd_flag(:), &
+       1, MPI_LOGICAL, LIS_mpi_comm, status)
+  data_upd = any(data_upd_flag)
+#else
+  data_upd = data_upd_flag_local
+#endif
+
+  write(LIS_logunit,*) '[DEBUG] data_upd = ', data_upd
+  call flush(LIS_logunit)
+
+  if (data_upd) then
+     write(LIS_logunit,*) '[DEBUG] Setting attributes...'
+     call flush(LIS_logunit)
+
+     ! Debug: print LIS_rc%udef value
+     write(LIS_logunit,*) '[DEBUG] LIS_rc%udef = ', LIS_rc%udef
+
+     ! Debug: count non-udef values in obsl
+     write(LIS_logunit,*) '[DEBUG] obsl values != LIS_rc%udef: ', &
+          count(obsl(1:LIS_rc%obs_ngrid(k)) .ne. LIS_rc%udef)
+     write(LIS_logunit,*) '[DEBUG] obsl values != -9999.0: ', &
+          count(obsl(1:LIS_rc%obs_ngrid(k)) .ne. -9999.0)
+     call flush(LIS_logunit)
+
+     ! Print first few obsl values
+     write(LIS_logunit,*) '[DEBUG] First 10 obsl values:'
+     do t = 1, min(10, LIS_rc%obs_ngrid(k))
+        write(LIS_logunit,*) '  obsl(', t, ') = ', obsl(t)
+     enddo
+     call flush(LIS_logunit)
+
+     do t = 1, LIS_rc%obs_ngrid(k)
+        gid(t) = t
+        ! FIXED: Use LIS_rc%udef instead of hardcoded -9999.0
+        if (obsl(t) .ne. LIS_rc%udef) then
+           assimflag(t) = 1
+        else
+           assimflag(t) = 0
+        endif
+     enddo
+
+     write(LIS_logunit,*) '[DEBUG] assimflag count (=1): ', count(assimflag.eq.1)
+     call flush(LIS_logunit)
+
+     call ESMF_AttributeSet(OBS_State, "Data Update Status", &
+          .true., rc=status)
+     call LIS_verify(status)
+     write(LIS_logunit,*) '[DEBUG] Data Update Status set to TRUE'
+     call flush(LIS_logunit)
+
+     write(LIS_logunit,*) '[DEBUG] obs_ngrid(k) = ', LIS_rc%obs_ngrid(k)
+     call flush(LIS_logunit)
+
+     if (LIS_rc%obs_ngrid(k) .gt. 0) then
+        write(LIS_logunit,*) '[DEBUG] Setting Grid Number attribute...'
+        call flush(LIS_logunit)
+        call ESMF_AttributeSet(smField, "Grid Number", &
+             gid, itemCount=LIS_rc%obs_ngrid(k), rc=status)
+        call LIS_verify(status, 'Error setting Grid Number attribute')
+        write(LIS_logunit,*) '[DEBUG] Grid Number attribute set, status=', status
+        call flush(LIS_logunit)
+
+        write(LIS_logunit,*) '[DEBUG] Setting Assimilation Flag attribute...'
+        call flush(LIS_logunit)
+        call ESMF_AttributeSet(smField, "Assimilation Flag", &
+             assimflag, itemCount=LIS_rc%obs_ngrid(k), rc=status)
+        call LIS_verify(status, 'Error setting Assimilation Flag attribute')
+        write(LIS_logunit,*) '[DEBUG] Assimilation Flag attribute set, status=', status
+        call flush(LIS_logunit)
+
+        write(LIS_logunit,*) '[DEBUG] Setting Unscaled Obs attribute...'
+        call flush(LIS_logunit)
+        call ESMF_AttributeSet(smfield, "Unscaled Obs", &
+             obs_unsc, itemCount=LIS_rc%obs_ngrid(k), rc=status)
+        call LIS_verify(status, 'Error in setting Unscaled Obs attribute')
+        write(LIS_logunit,*) '[DEBUG] Unscaled Obs attribute set, status=', status
+        call flush(LIS_logunit)
+
+     else
+        write(LIS_logunit,*) '[DEBUG] obs_ngrid(k) <= 0, skipping attribute setting'
+        call flush(LIS_logunit)
+     endif
+
+     write(LIS_logunit,*) '[DEBUG] read_NASA_AMSREsm completed successfully'
+     call flush(LIS_logunit)
+
+  else
+     call ESMF_AttributeSet(OBS_State, "Data Update Status", &
+          .false., rc=status)
+     call LIS_verify(status)
+  endif
+
+end subroutine read_NASA_AMSREsm
+
+
+!BOP
+! !ROUTINE: read_AMSREsm
+! \label{read_AMSREsm}
+!
+! !INTERFACE:
+subroutine read_AMSREsm(n, k, name)
+! !USES:
+  use LIS_coreMod,      only : LIS_rc,LIS_domain
+  use LIS_logmod,       only : LIS_logunit
+  use LIS_timeMgrMod,   only : LIS_tick
+  use NASA_AMSREsm_Mod, only : NASA_AMSREsm_struc
+  use LIS_DAobservationsMod, only : LIS_obs_domain
+#if (defined USE_HDF5)
+  use hdf5
+#endif
+  implicit none
+! !ARGUMENTS:
+  integer, intent(in)  :: n
+  integer, intent(in)  :: k
+  character(len=*)     :: name
+!
+! !DESCRIPTION:
+!  Reads AMSR2 L2 soil moisture swath data from HDF5 files
+!
+!EOP
+  real                 :: sb_rqc(NASA_AMSREsm_struc(n)%mo)
+
+#if (defined USE_HDF5)
+  ! AMSR2 L2 HDF5 variables
+  integer(hid_t)        :: file_id
+  integer(hid_t)        :: dset_id_sm, dset_id_lat, dset_id_lon, dset_id_qc
+  integer(hsize_t), dimension(3) :: dims_sm
+  integer(hsize_t), dimension(2) :: dims_latlon, dims_qc
+  integer(hsize_t), dimension(3) :: maxdims_sm
+  integer(hsize_t), dimension(2) :: maxdims_latlon, maxdims_qc
+  integer(hid_t)        :: dspace_id
+
+  ! AMSR2 L2 swath dimensions (will be read from file)
+  integer               :: swath_nr, swath_nc
+
+  ! Data arrays
+  real,allocatable      :: sm_swath(:,:,:)      ! (1, swath_nc, swath_nr)
+  integer*1,allocatable :: qc_swath(:,:,:)      ! (1, swath_nc, swath_nr) - QC flag (3D)
+  real,allocatable      :: lat_swath(:,:)       ! (swath_nc, swath_nr)
+  real,allocatable      :: lon_swath(:,:)       ! (swath_nc, swath_nr)
+
+  ! 1D arrays for interpolation
+  real,allocatable      :: sm_1d(:)
+  real,allocatable      :: lat_1d(:)
+  real,allocatable      :: lon_1d(:)
+  logical*1,allocatable :: li(:)
+
+  integer               :: mi, status, iret
+  integer               :: t, t_best, i, j, idx, igd, valid_count, r, c
+  integer               :: obs_c, obs_r, obs_idx, map_count
+  integer               :: obs_lnc_global, obs_lnr_global  ! Global grid dimensions
+  integer               :: qc_filtered, range_filtered
+  integer, allocatable  :: count_interp(:)
+  real                  :: udef, scale_factor
+  real                  :: sm_value_fraction
+  real                  :: lat_target, lon_target, min_dist, dist, dlat, dlon
+  real                  :: obs_dlon, obs_dlat, obs_lon_start, obs_lat_start
+  real                  :: obs_lat, obs_lon  ! For grid cell calculations
+  real, parameter       :: MAX_DIST_THRESHOLD = 16.0  ! 4 degrees squared (obs grid ~1.25 deg)
+  real,allocatable      :: sm_interp(:)
+
+  ! For parsing filename timestamp
+  integer               :: yr, mo, da, hr, mn, ss, doy
+  real                  :: gmt
+  real*8                :: timenow
+
+  character*100         :: sm_field_name, lat_field_name, lon_field_name, qc_field_name
+  character*100         :: filename
+  integer               :: fname_idx
+  integer(hid_t), save  :: my_real = -1
+  integer(hid_t), save  :: my_int1 = -1
+  logical, save         :: hdf5_initialized = .false.
+
+  ! Field names for AMSR2 L2
+  sm_field_name  = "Geophysical Data"
+  lat_field_name = "Latitude of Observation Point"
+  lon_field_name = "Longitude of Observation Point"
+  qc_field_name  = "Pixel Data Quality"
+
+  write(LIS_logunit,*) '[INFO] ========================================='
+  write(LIS_logunit,*) '[INFO] Reading AMSR2 L2 file:'
+  write(LIS_logunit,*) '[INFO] ', trim(name)
+  write(LIS_logunit,*) '[INFO] ========================================='
+  call flush(LIS_logunit)
+
+  udef = -9999.0
+  scale_factor = 0.1  ! AMSR2 L2 scale factor
+  igd = 1  ! AMSR2 L2 uses single index (not ascending/descending like AMSR-E)
+
+  ! Extract filename from full path
+  fname_idx = index(name, '/', back=.true.)
+  if(fname_idx .gt. 0) then
+     filename = name(fname_idx+1:len_trim(name))
+  else
+     filename = name
+  endif
+
+  ! Parse timestamp from filename: GW1AM2_YYYYMMDDHHMM_...
+  ! Example: GW1AM2_201901312344_171A_L2SGSMCLF3300300.h5
+  read(filename(8:11), '(i4)') yr
+  read(filename(12:13), '(i2)') mo
+  read(filename(14:15), '(i2)') da
+  read(filename(16:17), '(i2)') hr
+  read(filename(18:19), '(i2)') mn
+  ss = 0
+
+  write(LIS_logunit,*) '[INFO] Reading AMSR2 L2 file: ', trim(name)
+  write(LIS_logunit,*) '[INFO] Observation time: ', yr, '/', mo, '/', da, ' ', hr, ':', mn, ' UTC'
+
+  ! Initialize HDF5 interface (only once per process)
+  if(.not. hdf5_initialized) then
+     call h5open_f(status)
+     if(status .ne. 0) then
+        write(LIS_logunit,*) '[ERR] Failed to initialize HDF5 interface, status=', status
+        return
+     endif
+     write(LIS_logunit,*) '[INFO] HDF5 interface initialized'
+     hdf5_initialized = .true.
+  endif
+
+  ! Copy datatype for HDF5 reading (only once)
+  if (my_real == -1) then
+     call h5tcopy_f(H5T_NATIVE_REAL, my_real, status)
+     if(status .ne. 0) then
+        write(LIS_logunit,*) '[ERR] Failed to copy H5T_NATIVE_REAL, status=', status
+        return
+     endif
+     write(LIS_logunit,*) '[DEBUG] Copied my_real handle =', my_real
+  endif
+
+  if (my_int1 == -1) then
+     ! Use H5T_STD_I8LE for 1-byte integer (QC data is uint8)
+     call h5tcopy_f(H5T_STD_I8LE, my_int1, status)
+     if(status .ne. 0) then
+        write(LIS_logunit,*) '[ERR] Failed to copy H5T_STD_I8LE, status=', status
+        return
+     endif
+     write(LIS_logunit,*) '[DEBUG] Copied my_int1 (1-byte) handle =', my_int1
+  endif
+
+  ! Open HDF5 file first to get dimensions
+  call h5fopen_f(trim(name), H5F_ACC_RDONLY_F, file_id, status)
+  if(status .ne. 0) then
+     write(LIS_logunit,*) '[ERR] Failed to open file: ', trim(name)
+     return
+  endif
+
+  ! Open Geophysical Data dataset to get dimensions
+  call h5dopen_f(file_id, trim(sm_field_name), dset_id_sm, status)
+  if(status .ne. 0) then
+     write(LIS_logunit,*) '[ERR] Failed to open Geophysical Data dataset'
+     call h5fclose_f(file_id, status)
+     return
+  endif
+
+  ! Get dataspace and dimensions
+  call h5dget_space_f(dset_id_sm, dspace_id, status)
+  if(status .ne. 0) then
+     write(LIS_logunit,*) '[ERR] Failed to get dataspace'
+     call h5dclose_f(dset_id_sm, status)
+     call h5fclose_f(file_id, status)
+     return
+  endif
+
+  call h5sget_simple_extent_dims_f(dspace_id, dims_sm, maxdims_sm, status)
+  if(status .eq. -1) then
+     write(LIS_logunit,*) '[ERR] Failed to get dimensions'
+     call h5sclose_f(dspace_id, status)
+     call h5dclose_f(dset_id_sm, status)
+     call h5fclose_f(file_id, status)
+     return
+  endif
+
+  ! Extract actual dimensions from file
+  ! HDF5 Fortran returns dimensions in reverse order: C (1979,243,1) -> Fortran (1,243,1979)
+  write(LIS_logunit,*) '[DEBUG] HDF5 dims_sm: ', dims_sm(1), dims_sm(2), dims_sm(3)
+
+  swath_nr = int(dims_sm(3))  ! Last dimension = first in C order = 1979
+  swath_nc = int(dims_sm(2))  ! Middle dimension = 243
+  mi = swath_nr * swath_nc
+
+  write(LIS_logunit,*) '[INFO] Swath dimensions: ', swath_nr, ' x ', swath_nc, ' (total=', mi, ')'
+
+  ! Close dataset and dataspace
+  call h5sclose_f(dspace_id, status)
+  call h5dclose_f(dset_id_sm, status)
+
+  ! Allocate arrays now that we know the dimensions
+  ! HDF5 Fortran uses reverse dimension order: C (1979,243,1) -> Fortran (1,243,1979)
+  allocate(sm_swath(1, swath_nc, swath_nr))
+  allocate(qc_swath(1, swath_nc, swath_nr))
+  allocate(lat_swath(swath_nc, swath_nr))
+  allocate(lon_swath(swath_nc, swath_nr))
+  allocate(sm_1d(mi))
+  allocate(lat_1d(mi))
+  allocate(lon_1d(mi))
+  allocate(li(mi))
+  ! sm_interp will be allocated later for observation domain size
+
+  write(LIS_logunit,*) '[INFO] Arrays allocated successfully'
+
+  ! Read Geophysical Data (soil moisture)
+  call h5dopen_f(file_id, trim(sm_field_name), dset_id_sm, status)
+  if(status .ne. 0) then
+     write(LIS_logunit,*) '[ERR] Failed to open Geophysical Data dataset'
+     goto 100
+  endif
+
+  ! Fortran dimension order: reverse of C order
+  dims_sm(1) = 1
+  dims_sm(2) = swath_nc
+  dims_sm(3) = swath_nr
+  ! Use my_real to let HDF5 convert int16 to real automatically
+  call h5dread_f(dset_id_sm, my_real, sm_swath, dims_sm, status)
+  if(status .ne. 0) then
+     write(LIS_logunit,*) '[ERR] Failed to read Geophysical Data, status=', status
+     call h5dclose_f(dset_id_sm, status)
+     goto 100
+  endif
+  write(LIS_logunit,*) '[DEBUG] SM data read, min/max: ', minval(sm_swath), maxval(sm_swath)
+  write(LIS_logunit,*) '[DEBUG] Positive SM count: ', count(sm_swath > 0)
+  call h5dclose_f(dset_id_sm, status)
+
+  ! Read Latitude
+  call h5dopen_f(file_id, trim(lat_field_name), dset_id_lat, status)
+  if(status .ne. 0) then
+     write(LIS_logunit,*) '[ERR] Failed to open Latitude dataset'
+     goto 100
+  endif
+
+  ! Fortran dimension order
+  dims_latlon(1) = swath_nc
+  dims_latlon(2) = swath_nr
+  call h5dread_f(dset_id_lat, my_real, lat_swath, dims_latlon, status)
+  if(status .ne. 0) then
+     write(LIS_logunit,*) '[ERR] Failed to read Latitude'
+     call h5dclose_f(dset_id_lat, status)
+     goto 100
+  endif
+  call h5dclose_f(dset_id_lat, status)
+
+  ! Read Longitude
+  call h5dopen_f(file_id, trim(lon_field_name), dset_id_lon, status)
+  if(status .ne. 0) then
+     write(LIS_logunit,*) '[ERR] Failed to open Longitude dataset'
+     goto 100
+  endif
+
+  call h5dread_f(dset_id_lon, my_real, lon_swath, dims_latlon, status)
+  if(status .ne. 0) then
+     write(LIS_logunit,*) '[ERR] Failed to read Longitude'
+     call h5dclose_f(dset_id_lon, status)
+     goto 100
+  endif
+  call h5dclose_f(dset_id_lon, status)
+
+  ! Read Pixel Data Quality (QC flag)
+  ! QC data is stored as uint8 (H5T_STD_U8LE) with shape (1, 1978, 243)
+  ! QC=0 means normal retrieval (good data), QC!=0 means various issues
+  write(LIS_logunit,*) '[INFO] Reading QC data...'
+
+  call h5dopen_f(file_id, trim(qc_field_name), dset_id_qc, status)
+  if(status .ne. 0) then
+     write(LIS_logunit,*) '[WARN] Failed to open Pixel Data Quality dataset, using all data'
+     qc_swath = 0  ! If QC not available, assume all good
+  else
+     ! Read QC using same dimensions as SM (3D: 1 x swath_nc x swath_nr)
+     ! Use my_int1 (1-byte type) to match integer*1 array
+     call h5dread_f(dset_id_qc, my_int1, qc_swath, dims_sm, status)
+     if(status .ne. 0) then
+        write(LIS_logunit,*) '[WARN] Failed to read Pixel Data Quality, using all data'
+        qc_swath = 0
+     else
+        write(LIS_logunit,*) '[INFO] QC data read successfully'
+        write(LIS_logunit,*) '[INFO] QC=0 count (good data): ', count(qc_swath.eq.0)
+        write(LIS_logunit,*) '[INFO] QC!=0 count (flagged): ', count(qc_swath.ne.0)
+     endif
+     call h5dclose_f(dset_id_qc, status)
+  endif
+
+  ! Close file
+  call h5fclose_f(file_id, status)
+
+  ! Convert 2D swath to 1D arrays for interpolation
+  ! Arrays are in Fortran order: sm_swath(1, j, i), lat_swath(j, i)
+  ! Apply QC filtering: only use pixels with QC flag = 0 (normal retrieval)
+
+  idx = 0
+  valid_count = 0
+  qc_filtered = 0
+  range_filtered = 0
+
+  do i = 1, swath_nr
+     do j = 1, swath_nc
+        idx = idx + 1
+        ! Apply QC filter and scale factor
+        ! QC = 0: normal retrieval, no warnings
+        ! QC != 0: possible precipitation, invalid L1, errors, etc.
+        if(qc_swath(1,j,i) .eq. 0 .and. sm_swath(1,j,i) .gt. 0) then
+           sm_value_fraction = sm_swath(1,j,i) * scale_factor / 100.0  ! Convert % to fraction
+
+           ! CRITICAL: Apply physical range check (0.0 < SM < 0.6 or 60%)
+           ! Values > 0.6 indicate invalid/saturated pixels
+           if(sm_value_fraction .ge. 0.001 .and. sm_value_fraction .le. 0.60) then
+              sm_1d(idx) = sm_value_fraction
+              lat_1d(idx) = lat_swath(j,i)
+              lon_1d(idx) = lon_swath(j,i)
+              li(idx) = .true.
+              valid_count = valid_count + 1
+           else
+              ! Outside physical range - reject
+              li(idx) = .false.
+              range_filtered = range_filtered + 1
+           endif
+        else
+           ! Failed QC check
+           qc_filtered = qc_filtered + 1
+           sm_1d(idx) = udef
+           lat_1d(idx) = udef
+           lon_1d(idx) = udef
+           li(idx) = .false.
+        endif
+     enddo
+  enddo
+
+  write(LIS_logunit,*) '[INFO] Total swath points: ', mi
+  write(LIS_logunit,*) '[INFO] Valid SM points (after all filters): ', valid_count
+  write(LIS_logunit,*) '[INFO] Filtered by QC flag: ', qc_filtered
+  write(LIS_logunit,*) '[INFO] Filtered by range (SM<0.001 or SM>0.6): ', range_filtered
+
+  ! Debug: print sm_1d statistics
+  if(valid_count .gt. 0) then
+     write(LIS_logunit,*) '[DEBUG] sm_1d min/max: ', &
+          minval(sm_1d, mask=li), '/', maxval(sm_1d, mask=li)
+     write(LIS_logunit,*) '[DEBUG] First 10 valid sm_1d values:'
+     t = 0
+     do idx = 1, mi
+        if(li(idx)) then
+           write(LIS_logunit,*) '  sm_1d(', idx, ') = ', sm_1d(idx), ' at (', lat_1d(idx), ',', lon_1d(idx), ')'
+           t = t + 1
+           if(t .ge. 10) exit
+        endif
+     enddo
+  endif
+  call flush(LIS_logunit)
+
+  ! Perform interpolation to OBSERVATION domain (not model domain!)
+  ! Map each swath point to observation grid cell using lat/lon calculation
+  write(LIS_logunit,*) '[INFO] Interpolating to observation domain...'
+  write(LIS_logunit,*) '[DEBUG] Observation domain: ', LIS_rc%obs_lnc(k), ' x ', LIS_rc%obs_lnr(k)
+  call flush(LIS_logunit)
+
+  ! Get observation grid parameters from LIS obs_gridDesc
+  ! obs_gridDesc(4) = south lat, obs_gridDesc(5) = west lon
+  ! obs_gridDesc(9) = dlon, obs_gridDesc(10) = dlat
+  obs_dlon = LIS_rc%obs_gridDesc(k,9)
+  obs_dlat = LIS_rc%obs_gridDesc(k,10)
+  obs_lon_start = LIS_rc%obs_gridDesc(k,5)  ! West longitude (center of first cell)
+
+  ! OVERRIDE: Force global coverage for L2 swath data
+  ! Original LIS config may have southern hemisphere only (-89.875 to -0.125)
+  ! But L2 swath covers both hemispheres, so we need global grid
+  obs_lat_start = -89.875  ! South pole
+  obs_lnc_global = LIS_rc%obs_lnc(k)  ! Longitude: keep same (720 for 0.25deg)
+  obs_lnr_global = 720  ! Latitude: global coverage (720 for 0.25deg, -90 to +90)
+
+  write(LIS_logunit,*) '[DEBUG] Original obs grid from obs_gridDesc:'
+  write(LIS_logunit,*) '[DEBUG]   Resolution: dlon=', obs_dlon, ' dlat=', obs_dlat
+  write(LIS_logunit,*) '[DEBUG]   SW corner: lon=', obs_lon_start, ' lat=', LIS_rc%obs_gridDesc(k,4)
+  write(LIS_logunit,*) '[DEBUG]   NE corner: lon=', LIS_rc%obs_gridDesc(k,8), ' lat=', LIS_rc%obs_gridDesc(k,7)
+  write(LIS_logunit,*) '[DEBUG]   Grid size: ', LIS_rc%obs_lnc(k), ' x ', LIS_rc%obs_lnr(k)
+  write(LIS_logunit,*) '[DEBUG] OVERRIDE to GLOBAL grid for L2 swath:'
+  write(LIS_logunit,*) '[DEBUG]   SW corner: lon=', obs_lon_start, ' lat=', obs_lat_start
+  write(LIS_logunit,*) '[DEBUG]   NE corner: lat= 89.875'
+  write(LIS_logunit,*) '[DEBUG]   Global grid size: ', obs_lnc_global, ' x ', obs_lnr_global
+  call flush(LIS_logunit)
+
+  ! Reallocate sm_interp for GLOBAL observation domain
+  if(allocated(sm_interp)) deallocate(sm_interp)
+  allocate(sm_interp(obs_lnc_global*obs_lnr_global))
+  sm_interp = udef
+
+  ! Also track number of points mapped to each cell for averaging
+  allocate(count_interp(obs_lnc_global*obs_lnr_global))
+  count_interp = 0
+
+  ! For each valid swath point, calculate which obs grid cell it belongs to
+  map_count = 0
+  do idx = 1, mi
+     if(li(idx) .and. lat_1d(idx).ne.udef .and. lon_1d(idx).ne.udef) then
+        ! Calculate observation grid column and row
+        obs_c = nint((lon_1d(idx) - obs_lon_start) / obs_dlon) + 1
+        obs_r = nint((lat_1d(idx) - obs_lat_start) / obs_dlat) + 1
+
+        ! Check if within valid GLOBAL grid bounds
+        if(obs_c .ge. 1 .and. obs_c .le. obs_lnc_global .and. &
+           obs_r .ge. 1 .and. obs_r .le. obs_lnr_global) then
+
+           obs_idx = (obs_r-1)*obs_lnc_global + obs_c
+
+           ! Accumulate values for averaging
+           if(count_interp(obs_idx) .eq. 0) then
+              sm_interp(obs_idx) = sm_1d(idx)
+              count_interp(obs_idx) = 1
+           else
+              ! Running average
+              sm_interp(obs_idx) = (sm_interp(obs_idx)*count_interp(obs_idx) + sm_1d(idx)) / &
+                                   real(count_interp(obs_idx)+1)
+              count_interp(obs_idx) = count_interp(obs_idx) + 1
+           endif
+
+           map_count = map_count + 1
+
+           ! Debug first few mappings
+           if(map_count .le. 10) then
+              write(LIS_logunit,*) '[DEBUG] Swath', idx, ': (', lat_1d(idx), ',', lon_1d(idx), &
+                   ') SM=', sm_1d(idx), ' -> grid(', obs_c, ',', obs_r, ')'
+           endif
+        endif
+     endif
+  enddo
+
+  write(LIS_logunit,*) '[DEBUG] Total swath points mapped:', map_count
+  write(LIS_logunit,*) '[DEBUG] Unique grid cells with data:', count(sm_interp .ne. udef)
+  deallocate(count_interp)
+
+  write(LIS_logunit,*) '[INFO] Interpolation complete. Valid obs points: ', &
+       count(sm_interp .ne. udef)
+  call flush(LIS_logunit)
+
+  write(LIS_logunit,*) '[INFO] Interpolation completed, valid points: ', count(sm_interp .ne. udef)
+
+  ! Debug: print sm_interp statistics
+  if(count(sm_interp .ne. udef) .gt. 0) then
+     write(LIS_logunit,*) '[DEBUG] sm_interp min/max: ', &
+          minval(sm_interp, mask=sm_interp.ne.udef), '/', &
+          maxval(sm_interp, mask=sm_interp.ne.udef)
+     write(LIS_logunit,*) '[DEBUG] Unique values count in sm_interp: ', &
+          count(sm_interp.ne.udef)
+  endif
+  call flush(LIS_logunit)
+
+  ! Now sm_interp is in GLOBAL observation domain coordinates
+  ! Extract the subset that matches LIS obs domain and copy to smobs array
+  valid_count = 0
+
+  ! Map from global grid to LIS obs grid
+  ! LIS obs grid may be subset (e.g., southern hemisphere only)
+  ! Calculate which rows/cols of global grid correspond to LIS obs grid
+  do r = 1, LIS_rc%obs_lnr(k)
+     do c = 1, LIS_rc%obs_lnc(k)
+        ! Calculate lat/lon of this LIS obs grid cell
+        obs_lat = LIS_rc%obs_gridDesc(k,4) + (r-1)*obs_dlat
+        obs_lon = LIS_rc%obs_gridDesc(k,5) + (c-1)*obs_dlon
+
+        ! Find corresponding cell in global grid
+        obs_r = nint((obs_lat - obs_lat_start) / obs_dlat) + 1
+        obs_c = nint((obs_lon - obs_lon_start) / obs_dlon) + 1
+
+        ! Check bounds and copy
+        if(obs_r .ge. 1 .and. obs_r .le. obs_lnr_global .and. &
+           obs_c .ge. 1 .and. obs_c .le. obs_lnc_global) then
+
+           obs_idx = (obs_r-1)*obs_lnc_global + obs_c
+           t = (r-1)*LIS_rc%obs_lnc(k) + c
+
+           if(sm_interp(obs_idx) .ne. udef) then
+              NASA_AMSREsm_struc(n)%smobs(t, igd) = sm_interp(obs_idx)
+              valid_count = valid_count + 1
+           endif
+        endif
+     enddo
+  enddo
+
+  write(LIS_logunit,*) '[INFO] Added ', valid_count, ' valid observations to global array'
+
+100 continue
+
+  ! Clean up arrays
+  if(allocated(sm_swath)) deallocate(sm_swath)
+  if(allocated(qc_swath)) deallocate(qc_swath)
+  if(allocated(lat_swath)) deallocate(lat_swath)
+  if(allocated(lon_swath)) deallocate(lon_swath)
+  if(allocated(sm_1d)) deallocate(sm_1d)
+  if(allocated(lat_1d)) deallocate(lat_1d)
+  if(allocated(lon_1d)) deallocate(lon_1d)
+  if(allocated(li)) deallocate(li)
+  if(allocated(sm_interp)) deallocate(sm_interp)
+
+#else
+  write(LIS_logunit,*) '[ERR] LIS not compiled with HDF5 support'
+  write(LIS_logunit,*) '[ERR] Recompile with -DUSE_HDF5'
+  call LIS_endrun()
+#endif
+
+end subroutine read_AMSREsm
+
+
+!BOP
+! !ROUTINE: maskObs_basedonQC
+! \label{maskObs_basedonQC}
+!
+! !INTERFACE:
+subroutine maskObs_basedonQC(npts, smc, qc)
+! !USES:
+  use LIS_coreMod
+  use LIS_logMod,  only : LIS_logunit
+
+  implicit none
+! !ARGUMENTS:
+  integer             :: npts
+  real                :: smc(npts)
+  integer*2           :: qc(npts)
+!
+! !DESCRIPTION:
+!  This subroutine masks the observations based on QC flags
+!  For AMSR2 L2, QC masking is minimal since we filter during reading
+!
+!EOP
+  integer             :: i
+
+  ! For AMSR2 L2, most QC is done during file reading
+  ! Here we just check for any remaining invalid values
+  do i=1,npts
+     if(qc(i) .ne. 0) then
+        smc(i) = LIS_rc%udef
+     endif
+  enddo
+
+end subroutine maskObs_basedonQC
+
+
+!BOP
+! !ROUTINE: maskObs_basedonTime
+! \label{maskObs_basedonTime}
+!
+! !INTERFACE:
+subroutine maskObs_basedonTime(npts, smc, smtime, rsmc,fnd)
+! !USES:
+  use LIS_coreMod
+  use LIS_logMod
+
+  implicit none
+! !ARGUMENTS:
+  integer             :: npts
+  real                :: smc(npts,2)
+  real                :: smtime(npts,2)
+  real                :: rsmc(npts)
+  integer             :: fnd
+!
+! !DESCRIPTION:
+!  This subroutine masks observations based on time
+!  For AMSR2 L2, file selection is hourly (like SMAP L2),
+!  so we accept all data read for the current hour
+!
+!EOP
+  integer             :: i,igd
+  integer             :: valid_count_igd1, valid_count_igd2
+
+  write(LIS_logunit,*) '[DEBUG] maskObs_basedonTime called with npts = ', npts
+  call flush(LIS_logunit)
+
+  rsmc = LIS_rc%udef
+  fnd = 0
+  valid_count_igd1 = 0
+  valid_count_igd2 = 0
+
+  ! Count valid observations in igd=1
+  do i=1,npts
+     if(smc(i,1).ne.LIS_rc%udef) then
+        valid_count_igd1 = valid_count_igd1 + 1
+     endif
+  enddo
+
+  ! Count valid observations in igd=2
+  do i=1,npts
+     if(smc(i,2).ne.LIS_rc%udef) then
+        valid_count_igd2 = valid_count_igd2 + 1
+     endif
+  enddo
+
+  write(LIS_logunit,*) '[DEBUG] Valid obs in igd=1: ', valid_count_igd1
+  write(LIS_logunit,*) '[DEBUG] Valid obs in igd=2: ', valid_count_igd2
+  call flush(LIS_logunit)
+
+  ! For AMSR2 L2, simply copy all valid observations
+  ! (hourly file selection ensures temporal consistency)
+  ! Only use igd=1 to avoid double counting
+  do i=1,npts
+     if(smc(i,1).ne.LIS_rc%udef) then
+        rsmc(i) = smc(i,1)
+        fnd = fnd + 1
+     ! If igd=1 is undef, try igd=2
+     elseif(smc(i,2).ne.LIS_rc%udef) then
+        rsmc(i) = smc(i,2)
+        fnd = fnd + 1
+     endif
+  enddo
+
+  write(LIS_logunit,*) '[INFO] maskObs_basedonTime: ', fnd, ' valid observations'
+  call flush(LIS_logunit)
+
+end subroutine maskObs_basedonTime
+
+
+!BOP
+! !ROUTINE: NASA_AMSREsm_filename
+! \label{NASA_AMSREsm_filename}
+!
+! !INTERFACE:
+subroutine NASA_AMSREsm_filename(name, ndir, yr, mo, da, hr)
+! !USES:
+  use LIS_coreMod,only : LIS_rc
+  use LIS_logMod, only : LIS_logunit
+
+  implicit none
+! !ARGUMENTS:
+  character(len=*)  :: name
+  integer           :: yr, mo, da, hr
+  character (len=*) :: ndir
+!
+! !DESCRIPTION:
+!  This subroutine creates the AMSR2 L2 filename pattern based on the time and date
+!  Pattern: GW1AM2_YYYYMMDDHH*_*_L2SGSMCLF*.h5 (hour-specific)
+!
+!  The arguments are:
+!  \begin{description}
+!  \item[name] name of the AMSR2 L2 soil moisture filename pattern
+!  \item[ndir] name of the AMSR2 L2 soil moisture directory
+!  \item[yr]  current year
+!  \item[mo]  current month
+!  \item[da]  current day
+!  \item[hr]  current hour
+! \end{description}
+!EOP
+
+  character (len=4) :: fyr
+  character (len=2) :: fmo, fda, fhr
+
+  write(unit=fyr, fmt='(i4.4)') yr
+  write(unit=fmo, fmt='(i2.2)') mo
+  write(unit=fda, fmt='(i2.2)') da
+  write(unit=fhr, fmt='(i2.2)') hr
+
+  ! AMSR2 L2 filename pattern: GW1AM2_YYYYMMDDHHMM_OOOX_L2SGSMCLF3300300.h5
+  ! We use wildcard for minutes to match all passes within the hour
+  name = trim(ndir)//'/'//trim(fyr)//'/'//trim(fmo)//'/'//'GW1AM2_'&
+         //trim(fyr)//trim(fmo)//trim(fda)//trim(fhr)//'*_*_L2SGSMCLF*.h5'
+
+  write(LIS_logunit,*) '[DEBUG] AMSR2 L2 filename pattern: ', trim(name)
+
+end subroutine NASA_AMSREsm_filename

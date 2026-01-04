@@ -1,0 +1,5 @@
+RunoffSubSurfaceEquiWaterTableMod.o RunoffSubSurfaceEquiWaterTableMod.d : RunoffSubSurfaceEquiWaterTableMod.F90
+RunoffSubSurfaceEquiWaterTableMod.o : ConstantDefineMod.o
+RunoffSubSurfaceEquiWaterTableMod.o : Machine.o
+RunoffSubSurfaceEquiWaterTableMod.o : NoahmpVarType.o
+RunoffSubSurfaceEquiWaterTableMod.o : WaterTableEquilibriumMod.o

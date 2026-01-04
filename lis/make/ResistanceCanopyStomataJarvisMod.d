@@ -1,0 +1,5 @@
+ResistanceCanopyStomataJarvisMod.o ResistanceCanopyStomataJarvisMod.d : ResistanceCanopyStomataJarvisMod.F90
+ResistanceCanopyStomataJarvisMod.o : NoahmpVarType.o
+ResistanceCanopyStomataJarvisMod.o : HumiditySaturationMod.o
+ResistanceCanopyStomataJarvisMod.o : ConstantDefineMod.o
+ResistanceCanopyStomataJarvisMod.o : Machine.o

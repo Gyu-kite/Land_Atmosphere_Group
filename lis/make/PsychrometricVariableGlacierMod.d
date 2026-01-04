@@ -1,0 +1,4 @@
+PsychrometricVariableGlacierMod.o PsychrometricVariableGlacierMod.d : PsychrometricVariableGlacierMod.F90
+PsychrometricVariableGlacierMod.o : Machine.o
+PsychrometricVariableGlacierMod.o : NoahmpVarType.o
+PsychrometricVariableGlacierMod.o : ConstantDefineMod.o

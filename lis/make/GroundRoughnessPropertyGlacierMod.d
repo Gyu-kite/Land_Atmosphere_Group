@@ -1,0 +1,4 @@
+GroundRoughnessPropertyGlacierMod.o GroundRoughnessPropertyGlacierMod.d : GroundRoughnessPropertyGlacierMod.F90
+GroundRoughnessPropertyGlacierMod.o : Machine.o
+GroundRoughnessPropertyGlacierMod.o : NoahmpVarType.o
+GroundRoughnessPropertyGlacierMod.o : ConstantDefineMod.o

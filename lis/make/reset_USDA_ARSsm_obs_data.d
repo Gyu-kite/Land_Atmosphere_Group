@@ -1,0 +1,1 @@
+reset_USDA_ARSsm_obs_data.o reset_USDA_ARSsm_obs_data.d : reset_USDA_ARSsm_obs_data.F90

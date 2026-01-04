@@ -1,0 +1,6 @@
+GIMMSAVHRR_NDVIobsMod.o GIMMSAVHRR_NDVIobsMod.d : GIMMSAVHRR_NDVIobsMod.F90
+GIMMSAVHRR_NDVIobsMod.o : LVT_logMod.o
+GIMMSAVHRR_NDVIobsMod.o : LVT_constantsMod.o
+GIMMSAVHRR_NDVIobsMod.o : LVT_histDataMod.o
+GIMMSAVHRR_NDVIobsMod.o : LVT_coreMod.o
+GIMMSAVHRR_NDVIobsMod.o : LVT_timeMgrMod.o

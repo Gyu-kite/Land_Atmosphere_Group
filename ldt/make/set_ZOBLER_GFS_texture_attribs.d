@@ -1,0 +1,3 @@
+set_ZOBLER_GFS_texture_attribs.o set_ZOBLER_GFS_texture_attribs.d : set_ZOBLER_GFS_texture_attribs.F90
+set_ZOBLER_GFS_texture_attribs.o : LDT_misc.h
+set_ZOBLER_GFS_texture_attribs.o : LDT_paramDataMod.o

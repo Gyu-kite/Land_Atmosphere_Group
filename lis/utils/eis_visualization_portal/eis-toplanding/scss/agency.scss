@@ -1,0 +1,31 @@
+/*
+-----------------------BEGIN NOTICE -- DO NOT EDIT-----------------------
+ NASA Goddard Space Flight Center
+ Land Information System Framework (LISF)
+ Version 7.5
+
+ Copyright (c) 2024 United States Government as represented by the
+ Administrator of the National Aeronautics and Space Administration.
+ All Rights Reserved.
+-------------------------END NOTICE -- DO NOT EDIT-----------------------
+*/
+
+// Core variables and mixins
+@import "base/variables.scss";
+@import "base/mixins.scss";
+
+// Global CSS
+@import "base/page.scss";
+
+// Components
+@import "components/buttons.scss";
+@import "components/navbar.scss";
+
+// Layout
+@import "layout/masthead.scss";
+@import "layout/services.scss";
+@import "layout/portfolio.scss";
+@import "layout/timeline.scss";
+@import "layout/team.scss";
+@import "layout/contact.scss";
+@import "layout/footer.scss";

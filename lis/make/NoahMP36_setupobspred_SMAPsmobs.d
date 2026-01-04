@@ -1,0 +1,3 @@
+NoahMP36_setupobspred_SMAPsmobs.o NoahMP36_setupobspred_SMAPsmobs.d : NoahMP36_setupobspred_SMAPsmobs.F90
+NoahMP36_setupobspred_SMAPsmobs.o : LIS_logMod.o
+NoahMP36_setupobspred_SMAPsmobs.o : LIS_coreMod.o

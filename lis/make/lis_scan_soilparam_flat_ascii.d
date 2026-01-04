@@ -1,0 +1,2 @@
+lis_scan_soilparam_flat_ascii.o lis_scan_soilparam_flat_ascii.d : lis_scan_soilparam_flat_ascii.c
+lis_scan_soilparam_flat_ascii.o : vicNl.h

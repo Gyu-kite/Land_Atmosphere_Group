@@ -1,0 +1,4 @@
+PrecipitationHeatAdvectGlacierMod.o PrecipitationHeatAdvectGlacierMod.d : PrecipitationHeatAdvectGlacierMod.F90
+PrecipitationHeatAdvectGlacierMod.o : Machine.o
+PrecipitationHeatAdvectGlacierMod.o : NoahmpVarType.o
+PrecipitationHeatAdvectGlacierMod.o : ConstantDefineMod.o

@@ -1,0 +1,4 @@
+SOIL_PARM_AC72.o SOIL_PARM_AC72.d : SOIL_PARM_AC72.F90
+SOIL_PARM_AC72.o : module_sf_aclsm_72.o
+SOIL_PARM_AC72.o : LIS_coreMod.o
+SOIL_PARM_AC72.o : LIS_logMod.o

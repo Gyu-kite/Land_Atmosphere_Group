@@ -1,0 +1,4 @@
+pdflatex LVT_users_guide.tex
+bibtex LVT_users_guide
+pdflatex LVT_users_guide.tex
+pdflatex LVT_users_guide.tex

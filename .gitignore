@@ -1,0 +1,44 @@
+# Backup files
+*.bak
+*.bak_*
+*.backup
+*.backup_*
+*~
+*.orig
+
+# Compiled files
+*.o
+*.mod
+*.so
+*.a
+
+# Executables
+LIS
+LDTE
+LVT
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Documentation
+*.aux
+*.dvi
+*.log
+*.toc
+
+# Editor files
+*.swp
+*.swo
+.*.swp
+.DS_Store
+
+# Test outputs
+testcases/*/output/
+testcases/*/scratch/
+testcases/*/*.nc
+
+# Temporary files
+tmp/
+temp/

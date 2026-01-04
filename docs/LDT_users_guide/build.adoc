@@ -1,0 +1,203 @@
+
+[[sec-build]]
+== Building the Executable
+
+This section describes how to build the source code and create LDT`'s executable: named _LDT_.
+
+Please see Section <<sec-important_note_fs>> for information regarding using a case sensitive file system for compiling/running LDT.
+
+=== LISF Dependencies
+
+Please first read the companion document _LISF Installation Guide_.  This document describes the required and optional libraries used by LISF.  It also describes the supported development environments.
+
+=== Build Instructions
+
+:sectnums!: // disable section numbers
+
+==== Step 1
+
+Perform the steps described in Section <<sec-obtain-src>> to obtain the source code.
+
+==== Step 2
+
+Go to the _$WORKING_ directory. This directory contains two scripts for building the LDT executable: _configure_ and _compile_.
+
+==== Step 3
+
+Set the LDT_ARCH environment variable based on the system you are using. The following commands are written using Bash shell syntax.
+
+.For a Linux system with the Intel Fortran compiler
+....
+% export LDT_ARCH=linux_ifc
+....
+
+.For a Linux system with the GNU Fortran compiler
+....
+% export LDT_ARCH=linux_gfortran
+....
+
+.For a Cray system with the Intel Fortran compiler
+....
+% export LDT_ARCH=cray_ifc
+....
+
+.For a Cray system with the Cray Fortran compiler
+....
+% export LDT_ARCH=cray_cray
+....
+
+.For an IBM system with the GNU Fortran compiler
+....
+% export LDT_ARCH=ibm_gfortran
+....
+
+//.For an AIX system
+//....
+//% export LDT_ARCH=AIX
+//....
+
+//.For a Linux system with the Absoft Fortran compiler
+//....
+//% export LDT_ARCH=linux_absoft
+//....
+
+//.For a Linux system with the Lahey Fortran compiler
+//....
+//% export LDT_ARCH=linux_lf95
+//....
+
+It is suggested that you set this environment variable in a modulefile footnote:modulefile[See the "`Creating a Custom Modulefile`" document found at {nasalisfpages}] to load or in an environment script to source before compiling and/or running LDT.
+
+==== Step 4
+
+Run the _configure_ script first by typing:
+
+....
+% ./configure
+....
+
+This script will prompt the user with a series of questions regarding support to compile into LDT, requiring the user to specify the locations of the required and optional libraries via several LDT specific environment variables.  The following environment variables are used by LDT.
+
+[cols="<,<,<",]
+|===
+| Variable         | Description                | Usage
+
+| `LDT_FC`         | Fortran 90 compiler        | required
+| `LDT_CC`         | C compiler                 | required
+| `LDT_MODESMF`    | path to ESMF module files  | required
+| `LDT_LIBESMF`    | path to ESMF library files | required
+| `LDT_OPENJPEG`   | path to openJPEG library   | required
+| `LDT_ECCODES`    | path to ecCodes library    | required
+| `LDT_NETCDF`     | path to NetCDF library     | required
+| `LDT_HDF4`       | path to HDF4 library       | optional (required to use HDFEOS2)
+| `LDT_HDF5`       | path to HDF5 library       | optional
+| `LDT_HDFEOS`     | path to HDFEOS2 library    | optional
+| `LDT_GDAL`       | path to GDAL library       | optional
+| `LDT_FORTRANGIS` | path to FortranGIS library | optional (required to use GDAL)
+| `LDT_LIBGEOTIFF` | path to GeoTIFF library    | optional
+| `LDT_JPEG`       | path to JPEG library       | optional (use system libjpeg by default)
+| `LDT_LIBTIFF`    | path to TIFF library       | optional (use system libtiff by default)
+| `LDT_LIBJBIG`    | path to JBIG library       | optional (use system libjbig by default)
+| `LDT_LIBLZMA`    | path to LZMA library       | optional (use system liblzma by default)
+| `LDT_RPC`        | path to RPC library        | optional (use system RPC library by default)
+|===
+
+//{cpp} is C++
+Note that the `CC` variable must be set to a C compiler, not a {cpp} compiler.  A {cpp} compiler may mangle internal names in a manner that is not consistent with the Fortran compiler.  This will cause errors during linking.
+
+It is suggested that you set these environment variables in a modulefile footnote:modulefile[] to load or in an environment script to source before compiling and/or running LDT.
+
+You may encounter errors either when trying to compile LDT or when trying to run LDT because the compiler or operating system cannot find these libraries.  To fix this, you must add these libraries to your `$LD_LIBRARY_PATH` environment variable.  For example, say that you are using ESMF, ecCodes, NetCDF, and HDF5.  Then you must execute the following command (written using Bash shell syntax):
+
+....
+% export LD_LIBRARY_PATH=$LDT_HDF5/lib:$LDT_LIBESMF:$LDT_NETCDF/lib:$LDT_ECCODES/lib:$LD_LIBRARY_PATH
+....
+
+It is suggested that you set this environment variable in a modulefile footnote:modulefile[] to load or in an environment script to source before compiling and/or running LDT.
+
+===== Example
+
+An example execution of the configure script is shown below:
+
+[subs="attributes,quotes"]
+....
+% ./configure
+------------------------------------------------------------------------
+Setting up configuration for LDT
+Parallelism (0-serial, 1-dmpar, default=0):
+Optimization level (-3=strict checks with warnings, -2=strict checks, -1=debug, 0,1,2,3, default=2):
+Assume little/big_endian data format (1-little, 2-big, default=2):
+Use GRIBAPI/ECCODES? (0-neither, 1-gribapi, 2-eccodes, default=2):
+NETCDF version (3 or 4, default=4)?:
+NETCDF use shuffle filter? (1-yes, 0-no, default = 1):
+NETCDF use deflate filter? (1-yes, 0-no, default = 1):
+NETCDF use deflate level? (1 to 9-yes, 0-no, default = 9):
+Use HDF4? (1-yes, 0-no, default=1):
+Use HDF5? (1-yes, 0-no, default=1):
+Use HDFEOS? (1-yes, 0-no, default=1):
+Enable GeoTIFF support? (1-yes, 0-no, default=1):
+Enable LIBGEOTIFF support? (1-yes, 0-no, default=1):
+Include date/time stamp history? (1-yes, 0-no, default=1):
+-----------------------------------------------------
+ configure.ldt file generated successfully
+-----------------------------------------------------
+Settings are written to configure.ldt in the make directory.
+If you wish to change settings, please edit that file.
+
+To compile, run the compile script.
+------------------------------------------------------------------------
+....
+
+At each prompt, select the desired value.  If you desire the default value, then you may simply press the Enter key.
+
+Most of the configure options are be self-explanatory.  Here are a few specific notes:
+
+* for `Parallelism (0-serial, 1-dmpar, default=1):`,
+dmpar refers to enabling MPI
+
+//* for `Use openMP parallelism (1-yes, 0-no, default=0):`,
+//select the default value of 0.  OpenMP support is
+//experimental.  Please do not use.
+
+* for `Assume little/big_endian data format (1-little, 2-big, default=2):`,
+select the default value of 2.  By default, LDT reads and writes binary data in the big endian format.  Only select the value of 1, if you have reformatted all required binary data into the little endian format.
+
+* for `Use GRIBAPI/ECCODES? (0-neither, 1-gribapi, 2-eccodes, default=2):`,
+select the default value of 2.  Technically, GRIB support is not required by LDT; however, most of the commonly used met forcing data are in GRIB, making GRIB support a practical requirement.  ecCodes is ECMWF`'s replacement to their GRIB-API library.  GRIB-API is supported only for historical reasons; thus, please use ecCodes.
++
+IMPORTANT: GRIB-API support is now deprecated.  Future releases will support only ecCodes.
+
+* for `Enable GeoTIFF support? (1-yes, 0-no, default=1):`,
+GeoTIFF means the GeoTIFF support provided by the GDAL library.
+
+* for `Enable LIBGEOTIFF support? (1-yes, 0-no, default=1):`,
+LIBGEOTIFF means GeoTIFF support provided by the GeoTIFF library.
+
+Note that due to an issue involving multiple definitions within the NetCDF 3 and HDF 4 libraries, you cannot compile LDT with support for both NetCDF 3 and HDF 4 together.
+
+Note that if you compiled NetCDF 4 without compression, then when specifying `NETCDF version (3 or 4, default=4):`, select 3. Then you must manually append `-lnetcdff` to the `LDFLAGS` variable in the _make/configure.ldt_ file.
+
+==== Step 5
+
+Compile the LDT source code by running the _compile_ script.
+
+....
+% ./compile
+....
+
+This script will compile the libraries provided with LDT and then the LDT source code. The executable _LDT_ will be placed in the _$WORKING_ directory upon successful completion of the _compile_ script.
+
+==== Step 6
+
+Finally, copy the _LDT_ executable into your running directory, _$RUNNING_.  (See Section <<sec-run>>.)
+
+:sectnums: // re-enable section numbers
+
+//=== Generating documentation
+//
+//LDT code uses the ProTex (http://gmao.gsfc.nasa.gov/software/protex/) documenting system  <<protex>>.  The documentation in LaTeX format can be produced by using the `doc.csh` in the _$WORKING/utils_ directory. This command produces documentation, generating a number of LaTeX files.
+// //These files can be easily converted to pdf
+// //or html formats using utilites such as \cmdfont{pdflatex} or
+// //\cmdfont{latex2html}.
+//These files can be easily converted to pdf using utilites such as `pdflatex`.
+

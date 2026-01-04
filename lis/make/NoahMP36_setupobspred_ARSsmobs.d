@@ -1,0 +1,3 @@
+NoahMP36_setupobspred_ARSsmobs.o NoahMP36_setupobspred_ARSsmobs.d : NoahMP36_setupobspred_ARSsmobs.F90
+NoahMP36_setupobspred_ARSsmobs.o : LIS_coreMod.o
+NoahMP36_setupobspred_ARSsmobs.o : LIS_logMod.o

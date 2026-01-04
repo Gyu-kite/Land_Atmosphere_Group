@@ -1,0 +1,206 @@
+
+[[sec-build]]
+== Building the Executable
+
+This section describes how to build the source code and create LVT`'s executable: named _LVT_.
+
+Please see Section <<sec-important_note_fs>> for information regarding using a case sensitve file system for compiling/running LVT.
+
+=== LISF Dependencies
+
+Please first read the companion document _LISF Installation Guide_.  This document describes the required and optional libraries used by LISF.  It also describes the supported development environments.
+
+=== Build Instructions
+
+:sectnums!: // disable section numbers
+
+==== Step 1
+
+Perform the steps described in Section <<sec-obtain-src>> to obtain the source code.
+
+==== Step 2
+
+Go to the _$WORKING_ directory.  This directory contains two scripts for building the LVT executable: _configure_ and _compile_.
+
+==== Step 3
+
+Set the LVT_ARCH environment variable based on the system you are using.  The following commands are written using Bash shell syntax.
+
+.For a Linux system with the Intel Fortran compiler
+....
+% export LVT_ARCH=linux_ifc
+....
+
+.For a Linux system with the GNU Fortran compiler
+....
+% export LVT_ARCH=linux_gfortran
+....
+
+.For a Cray system with the Intel Fortran compiler
+....
+% export LVT_ARCH=cray_ifc
+....
+
+.For a Cray system with the Cray Fortran compiler
+....
+% export LVT_ARCH=cray_cray
+....
+
+.For an IBM system with the GNU Fortran compiler
+....
+% export LVT_ARCH=ibm_gfortran
+....
+
+//.For an AIX system
+//....
+//% export LVT_ARCH=AIX
+//....
+
+//.For a Linux system with the Absoft Fortran compiler
+//....
+//% export LVT_ARCH=linux_absoft
+//....
+
+//.For a Linux system with the Lahey Fortran compiler
+//....
+//% export LVT_ARCH=linux_lf95
+//....
+
+It is suggested that you set this environment variable in a modulefile footnote:modulefile[See the "`Creating a Custom Modulefile`" document found at {nasalisfpages}] to load or in an environment script to source before compiling and/or running LVT.
+
+==== Step 4
+
+Run the _configure_ script first by typing:
+
+....
+% ./configure
+....
+
+This script will prompt the user with a series of questions regarding support to compile into LVT, requiring the user to specify the locations of the required and optional libraries via several LVT specific environment variables.  The following environment variables are used by LVT.
+
+[cols="<,<,<",]
+|===
+| Variable         | Description                | Usage
+
+| `LVT_FC`         | Fortran 90                 | required
+| `LVT_CC`         | C compiler                 | required
+| `LVT_MODESMF`    | path to ESMF modules files | required
+| `LVT_LIBESMF`    | path to ESMF library files | required
+| `LVT_OPENJPEG`   | path to openJPEG library   | required
+| `LVT_ECCODES`    | path to ecCodes library    | required
+| `LVT_NETCDF`     | path to NETCDF library     | optional
+| `LVT_HDF4`       | path to HDF4 library       | optional (required to use HDFEOS2)
+| `LVT_HDF5`       | path to HDF5 library       | optional
+| `LVT_HDFEOS`     | path to HDFEOS2 library    | optional
+| `LVT_GDAL`       | path to GDAL library       | optional
+| `LVT_FORTRANGIS` | path to FortranGIS library | optional (required to use GDAL)
+| `LVT_JPEG`       | path to JPEG library       | optional (use system libjpeg by default)
+| `LVT_RPC`        | path to RPC library        | optional (use system RPC library by default)
+|===
+
+//{cpp} is C++
+Note that the `CC` variable must be set to a C compiler, not a {cpp} compiler.  A {cpp} compiler may mangle internal names in a manner that is not consistent with the Fortran compiler.  This will cause errors during linking.
+
+It is suggested that you set these environment variables in a modulefile footnote:modulefile[] to load or in an environment script to source before compiling and/or running LVT.
+
+You may encounter errors either when trying to compile LVT or when trying to run LVT because the compiler or operating system cannot find these libraries.  To fix this, you must add these libraries to your `$LD_LIBRARY_PATH` environment variable.
+For example, say that you are using ESMF, ecCodes, NetCDF, and HDF5.  Then you must execute the following command (written using Bash shell syntax):
+
+....
+% export LD_LIBRARY_PATH=$LVT_HDF5/lib:$LVT_LIBESMF:$LVT_NETCDF/lib:$LVT_ECCODES/lib:$LD_LIBRARY_PATH
+....
+
+It is suggested that you set this environment variable in a modulefile footnote:modulefile[] to load or in an environment script to source before compiling and/or running LVT.
+
+===== Example
+
+An example execution of the configure script is shown below:
+
+[subs="attributes,quotes"]
+....
+% ./configure
+------------------------------------------------------------------------
+Setting up configuration for LVT
+Optimization level (-3=strict checks with warnings, -2=strict checks, -1=debug, 0,1,2,3, default=2):
+Assume little/big_endian data format (1-little, 2-big, default=2):
+Use GRIBAPI/ECCODES? (1-gribapi, 2-eccodes, default=2):
+Use NETCDF? (1-yes, 0-no, default=1):
+NETCDF version (3 or 4, default=4):
+NETCDF use shuffle filter? (1-yes, 0-no, default = 1):
+NETCDF use deflate filter? (1-yes, 0-no, default = 1):
+NETCDF use deflate level? (1 to 9-yes, 0-no, default = 9):
+Use HDF4? (1-yes, 0-no, default=1):
+Use HDF5? (1-yes, 0-no, default=1):
+Use HDFEOS? (1-yes, 0-no, default=1):
+Enable AFWA-specific grib configuration settings? (1-yes, 0-no, default=0):
+Enable GeoTIFF support? (1-yes, 0-no, default=1):
+Use MATLAB support? (1-yes, 0-no, default=0):
+-----------------------------------------------------
+ configure.lvt file generated successfully
+-----------------------------------------------------
+Settings are written to configure.lvt in the make directory.
+If you wish to change settings, please edit that file.
+
+To compile, run the compile script.
+------------------------------------------------------------------------
+....
+
+At each prompt, select the desired value.  If you desire the default value, then you may simply press the Enter key.
+
+Most of the configure options are be self-explanatory.  Here are a few specific notes:
+
+//* for `Parallelism (0-serial, 1-dmpar, default=1):`,
+//dmpar refers to enabling MPI
+
+//* for `Use openMP parallelism (1-yes, 0-no, default=0):`,
+//select the default value of 0.  OpenMP support is
+//experimental.  Please do not use.
+
+//* for `Optimization level (-3=strict checks with warnings, -2=strict checks, -1=debug, 0,1,2,3, default=2):`
+//+
+//[IMPORTANT]
+//====
+//There is an open issue regarding compiling LVT with the GNU compilers version 7.3 (and higher).  One of the modules takes a long time to compile, and the compilation consumes a lot of memory, often to the point of aborting.
+//
+//When using the GNU compilers, you should select `0`.
+//====
+
+* for `Assume little/big_endian data format (1-little, 2-big, default=2):`,
+select the default value of 2.  By default, LVT reads and writes binary data in the big endian format.  Only select the value of 1, if you have reformatted all required binary data into the little endian format.
+
+* for `Use GRIBAPI/ECCODES? (1-gribapi, 2-eccodes, default=2):`,
+select the default value of 2.  Technically, GRIB support is not required by LVT; however, most of the commonly used met forcing data are in GRIB, making GRIB support a practical requirement.  ecCodes is ECMWF's replacement to their GRIB-API library.  GRIB-API is supported only for historical reasons; thus, please use ecCodes.
++
+IMPORTANT: GRIB-API support is now deprecated.  Future releases will support only ecCodes.
+
+* for `Enable GeoTIFF support? (1-yes, 0-no, default=1):`,
+GeoTIFF means the GeoTIFF support provided by the GDAL library.
+
+Note that due to an issue involving multiple definitions within the NetCDF 3 and HDF 4 libraries, you cannot compile LVT with support for both NetCDF 3 and HDF 4 together.
+
+Note that if you compiled NetCDF 4 without compression, then when specifying `NETCDF version (3 or 4, default=4):`, select 3. Then you must manually append `-lnetcdff` to the `LDFLAGS` variable in the _make/configure.lvt_ file.
+
+==== Step 5
+
+Compile the LVT source code by running the _compile_ script.
+
+....
+% ./compile
+....
+
+This script will compile the libraries provided with LVT, the dependency generator and then the LVT source code. The executable _LVT_ will be placed in the _$WORKING_ directory upon successful completion of the _compile_ script.
+
+==== Step 6
+
+Finally, copy the _LVT_ executable into your running directory, _$RUNNING_.  (See Section <<sec-run>>.)
+
+:sectnums: // re-enable section numbers
+
+//=== Generating documentation
+//
+//LVT code uses the ProTex (http://gmao.gsfc.nasa.gov/software/protex/) documenting system  <<protex>>.  The documentation in LaTeX format can be produced by using the `doc.csh` in the _$WORKING/src/utils_ directory. This command produces documentation, generating a number of LaTeX files.
+// //These files can be easily converted to pdf
+// //or html formats using utilites such as \cmdfont{pdflatex} or
+// //\cmdfont{latex2html}.
+//These files can be easily converted to pdf using utilites such as `pdflatex`.
+

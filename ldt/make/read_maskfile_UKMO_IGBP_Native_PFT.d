@@ -1,0 +1,5 @@
+read_maskfile_UKMO_IGBP_Native_PFT.o read_maskfile_UKMO_IGBP_Native_PFT.d : read_maskfile_UKMO_IGBP_Native_PFT.F90
+read_maskfile_UKMO_IGBP_Native_PFT.o : LDT_logMod.o
+read_maskfile_UKMO_IGBP_Native_PFT.o : LDT_coreMod.o
+read_maskfile_UKMO_IGBP_Native_PFT.o : LDT_misc.h
+read_maskfile_UKMO_IGBP_Native_PFT.o : LDT_fileIOMod.o

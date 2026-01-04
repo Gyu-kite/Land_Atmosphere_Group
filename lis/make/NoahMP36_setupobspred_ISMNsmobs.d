@@ -1,0 +1,3 @@
+NoahMP36_setupobspred_ISMNsmobs.o NoahMP36_setupobspred_ISMNsmobs.d : NoahMP36_setupobspred_ISMNsmobs.F90
+NoahMP36_setupobspred_ISMNsmobs.o : LIS_logMod.o
+NoahMP36_setupobspred_ISMNsmobs.o : LIS_coreMod.o

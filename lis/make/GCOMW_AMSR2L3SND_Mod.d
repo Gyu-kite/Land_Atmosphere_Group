@@ -1,0 +1,10 @@
+GCOMW_AMSR2L3SND_Mod.o GCOMW_AMSR2L3SND_Mod.d : GCOMW_AMSR2L3SND_Mod.F90
+GCOMW_AMSR2L3SND_Mod.o : LIS_timeMgrMod.o
+GCOMW_AMSR2L3SND_Mod.o : LIS_dataAssimMod.o
+GCOMW_AMSR2L3SND_Mod.o : LIS_perturbMod.o
+GCOMW_AMSR2L3SND_Mod.o : LIS_logMod.o
+GCOMW_AMSR2L3SND_Mod.o : LIS_DAobservationsMod.o
+GCOMW_AMSR2L3SND_Mod.o : map_utils.o
+GCOMW_AMSR2L3SND_Mod.o : LIS_coreMod.o
+GCOMW_AMSR2L3SND_Mod.o : LIS_historyMod.o
+GCOMW_AMSR2L3SND_Mod.o : LIS_constantsMod.o

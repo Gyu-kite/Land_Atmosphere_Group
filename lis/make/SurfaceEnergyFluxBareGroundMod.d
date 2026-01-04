@@ -1,0 +1,7 @@
+SurfaceEnergyFluxBareGroundMod.o SurfaceEnergyFluxBareGroundMod.d : SurfaceEnergyFluxBareGroundMod.F90
+SurfaceEnergyFluxBareGroundMod.o : NoahmpVarType.o
+SurfaceEnergyFluxBareGroundMod.o : ResistanceBareGroundMostMod.o
+SurfaceEnergyFluxBareGroundMod.o : VaporPressureSaturationMod.o
+SurfaceEnergyFluxBareGroundMod.o : Machine.o
+SurfaceEnergyFluxBareGroundMod.o : ConstantDefineMod.o
+SurfaceEnergyFluxBareGroundMod.o : ResistanceBareGroundChen97Mod.o

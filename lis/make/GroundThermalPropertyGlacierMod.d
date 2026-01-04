@@ -1,0 +1,6 @@
+GroundThermalPropertyGlacierMod.o GroundThermalPropertyGlacierMod.d : GroundThermalPropertyGlacierMod.F90
+GroundThermalPropertyGlacierMod.o : Machine.o
+GroundThermalPropertyGlacierMod.o : SnowThermalPropertyMod.o
+GroundThermalPropertyGlacierMod.o : GlacierIceThermalPropertyMod.o
+GroundThermalPropertyGlacierMod.o : NoahmpVarType.o
+GroundThermalPropertyGlacierMod.o : ConstantDefineMod.o

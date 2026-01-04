@@ -1,0 +1,2 @@
+NoahMP50_snowphys_updateMod.o NoahMP50_snowphys_updateMod.d : NoahMP50_snowphys_updateMod.F90
+NoahMP50_snowphys_updateMod.o : LisNoahmpParamType.o
