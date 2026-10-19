@@ -28,7 +28,7 @@ description: Audit soil-moisture data-assimilation evaluation notebooks for comp
 6. 원본을 보존하고 요청된 출력 또는 별도 작업 경로에 근거를 저장한다.
    수정 요청이 없으면 notebook·원자료·공유 cache를 변경하지 않는다.
 
-## 출력 순서
+## 출력 순서 — 최종 답변에 아래 다섯 항목을 순서대로 직접 제시하고, 상세 보고서 링크만으로 대체하지 않는다.
 
 1. 대상과 비교 기준: 실제 파일, 비교 실험, 지표 및 평가 기간.
 2. `일치 / 불일치 / 확인 불가` 점검표: 실제 값, 코드·자료 위치, 확인 범위.

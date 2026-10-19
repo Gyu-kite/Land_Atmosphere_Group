@@ -1,0 +1,138 @@
+{
+  "report_backup": "docs/assignement/05주차_과제_보고서.before_step5_retest_20261019_170909.md",
+  "report_backup_sha256": "fa8080db86ba2c65f20646cb804f24317081c726f62331afcd511fd41a2a73ec",
+  "protected_before": {
+    "docs/assignement/step4_tests/A/check.py": "c0fba8130b71eea6a5f75b663efbe5380e19ada5c9d0bbae63cbc66173e312fa",
+    "docs/assignement/step4_tests/A/result.json": "63e15da05d8874f176772d7925a16eb45c34916754077f0492dfa1c8693149d2",
+    "docs/assignement/step4_tests/B/REPORT_KO.md": "b4267e9c07ef187198deaf5bcbe45efda5a90822a801cb909cafc1f6a5a14c33",
+    "docs/assignement/step4_tests/B/audit.json": "291c136b493fb59917eabd6d5de6806c14be59502118c5942fc84c596394ec72",
+    "docs/assignement/step4_tests/B/audit_comparison.py": "cbff134cb0044449416fbe569888d091018de07584e43e4fb8a067a4031670aa",
+    "docs/assignement/step4_tests/B/check_samples.py": "bc477489c9fccfa79c342ad841a00a5d2707e1434a2f4b92e9fdd84e93569dc0",
+    "docs/assignement/step4_tests/B/date_support.csv": "8a0d1115b9c2a5a65d13651f425a7c462ad289c21962439dd75f14d146f83a80",
+    "docs/assignement/step4_tests/B/monthly_site_composition.csv": "1d835f221a5ee62b1dfb22d9ea56beccb0b56428c6864ce63de5aeb946923416",
+    "docs/assignement/step4_tests/B/recalculated_station_year_month.csv": "8d2f87c67e3dcf4da77467e4cf0899abd91d164ada09d3141f17025afae93a4e",
+    "docs/assignement/step4_tests/B/sample_counts.csv": "6fc77b6485ba589849468021bcaeda7edfa173863a232d0cbe65efba1006324a",
+    "docs/assignement/step4_tests/B/supplement.json": "87d1445d98d59c10dfd0d6e9cbd73d89fc68162c84c0bbcbf6e540f3cad6d295",
+    "docs/assignement/step4_tests/B/SKILL.tested.md": "75ec80aac94f8097d7c250064eb08b5d0a42fbd55d1a6f43937c49c593772748",
+    "docs/assignement/step4_tests/B/research.tested.md": "23362f269e81848c96e3c39e98e3b024429fdee214b4af93896d4d6194106452",
+    "docs/assignement/step4_tests/B/preservation.json": "c5c6338474ce393b9c790ca91b94e96e7233f82226173ec7bb16faffb4203ae4",
+    "docs/assignement/step4_tests/B/test_record.md": "465661cbc733c61589a4b729ab00963269ff1c577af6fd077e4aefa8b8534fa1",
+    "docs/assignement/step4_tests/B/recording_verification.json": "a42ad0a0ababc7de09b3563cbd9189d35f3acc6cb5e7ab516929d99871c37ebb",
+    "docs/assignement/step4_tests/C/test_record.md": "e0a458a4e5e09d8d07087ee58cc7133da454a73f467577296ef20cb1f3d71890",
+    "docs/assignement/step4_tests/C/preservation.json": "90d267c7ed32c01306f738c2377370aab80c684c5e8c85e161c7bec1af7d9afe",
+    ".agents/skills/audit-da-comparison/SKILL.md": "fd72f8133cf2af6ba7c4f7d162f69e93fa97c4d9c03af3e5969121c405853205",
+    ".agents/skills/audit-da-comparison/references/research.md": "23362f269e81848c96e3c39e98e3b024429fdee214b4af93896d4d6194106452"
+  },
+  "copies": [
+    {
+      "source": "docs/audits/smap_skill_20261019_recheck_01/audit_comparison.py",
+      "copy": "docs/assignement/step5_one_line_20261019/retest/audit_comparison.py",
+      "sha256": "cbff134cb0044449416fbe569888d091018de07584e43e4fb8a067a4031670aa"
+    },
+    {
+      "source": "docs/audits/smap_skill_20261019_recheck_01/check_samples.py",
+      "copy": "docs/assignement/step5_one_line_20261019/retest/check_samples.py",
+      "sha256": "bc477489c9fccfa79c342ad841a00a5d2707e1434a2f4b92e9fdd84e93569dc0"
+    },
+    {
+      "source": "docs/audits/smap_skill_20261019_recheck_01/source_provenance.json",
+      "copy": "docs/assignement/step5_one_line_20261019/retest/source_provenance.json",
+      "sha256": "057bdf2904b8e59b004ac1a8f1bcfdccae35d124d97df12758e94a9a92079b65"
+    },
+    {
+      "source": "docs/audits/smap_skill_20261019_recheck_01/TASK_LOG_KO.txt",
+      "copy": "docs/assignement/step5_one_line_20261019/retest/TASK_LOG_KO.txt",
+      "sha256": "f1ad9e01305e04d00983eb2bab5428a0c36963513de2ec57cc2f3cb94ec188f5"
+    },
+    {
+      "source": "docs/audits/smap_skill_20261019_recheck_01/recalculated_station_year_month.csv",
+      "copy": "docs/assignement/step5_one_line_20261019/retest/recalculated_station_year_month.csv",
+      "sha256": "8d2f87c67e3dcf4da77467e4cf0899abd91d164ada09d3141f17025afae93a4e"
+    },
+    {
+      "source": "docs/audits/smap_skill_20261019_recheck_01/date_support.csv",
+      "copy": "docs/assignement/step5_one_line_20261019/retest/date_support.csv",
+      "sha256": "8a0d1115b9c2a5a65d13651f425a7c462ad289c21962439dd75f14d146f83a80"
+    },
+    {
+      "source": "docs/audits/smap_skill_20261019_recheck_01/sample_counts.csv",
+      "copy": "docs/assignement/step5_one_line_20261019/retest/sample_counts.csv",
+      "sha256": "6fc77b6485ba589849468021bcaeda7edfa173863a232d0cbe65efba1006324a"
+    },
+    {
+      "source": "docs/audits/smap_skill_20261019_recheck_01/audit.json",
+      "copy": "docs/assignement/step5_one_line_20261019/retest/audit.json",
+      "sha256": "291c136b493fb59917eabd6d5de6806c14be59502118c5942fc84c596394ec72"
+    },
+    {
+      "source": "docs/audits/smap_skill_20261019_recheck_01/monthly_site_composition.csv",
+      "copy": "docs/assignement/step5_one_line_20261019/retest/monthly_site_composition.csv",
+      "sha256": "1d835f221a5ee62b1dfb22d9ea56beccb0b56428c6864ce63de5aeb946923416"
+    },
+    {
+      "source": "docs/audits/smap_skill_20261019_recheck_01/supplement.json",
+      "copy": "docs/assignement/step5_one_line_20261019/retest/supplement.json",
+      "sha256": "87d1445d98d59c10dfd0d6e9cbd73d89fc68162c84c0bbcbf6e540f3cad6d295"
+    },
+    {
+      "source": "docs/assignement/step5_one_line_20261019/SKILL.before.md",
+      "copy": "docs/assignement/step5_one_line_20261019/retest/SKILL.before.md",
+      "sha256": "75ec80aac94f8097d7c250064eb08b5d0a42fbd55d1a6f43937c49c593772748"
+    },
+    {
+      "source": "docs/assignement/step5_one_line_20261019/SKILL.after.md",
+      "copy": "docs/assignement/step5_one_line_20261019/retest/SKILL.after.md",
+      "sha256": "fd72f8133cf2af6ba7c4f7d162f69e93fa97c4d9c03af3e5969121c405853205"
+    },
+    {
+      "source": "docs/assignement/step5_one_line_20261019/RETEST_PROMPT.txt",
+      "copy": "docs/assignement/step5_one_line_20261019/retest/RETEST_PROMPT.txt",
+      "sha256": "7414909a6a15553b05d72dacf857b2bc9dd37b2d2c2613238c6cbad98ad3608b"
+    }
+  ],
+  "protected_after": {
+    "docs/assignement/step4_tests/A/check.py": "c0fba8130b71eea6a5f75b663efbe5380e19ada5c9d0bbae63cbc66173e312fa",
+    "docs/assignement/step4_tests/A/result.json": "63e15da05d8874f176772d7925a16eb45c34916754077f0492dfa1c8693149d2",
+    "docs/assignement/step4_tests/B/REPORT_KO.md": "b4267e9c07ef187198deaf5bcbe45efda5a90822a801cb909cafc1f6a5a14c33",
+    "docs/assignement/step4_tests/B/audit.json": "291c136b493fb59917eabd6d5de6806c14be59502118c5942fc84c596394ec72",
+    "docs/assignement/step4_tests/B/audit_comparison.py": "cbff134cb0044449416fbe569888d091018de07584e43e4fb8a067a4031670aa",
+    "docs/assignement/step4_tests/B/check_samples.py": "bc477489c9fccfa79c342ad841a00a5d2707e1434a2f4b92e9fdd84e93569dc0",
+    "docs/assignement/step4_tests/B/date_support.csv": "8a0d1115b9c2a5a65d13651f425a7c462ad289c21962439dd75f14d146f83a80",
+    "docs/assignement/step4_tests/B/monthly_site_composition.csv": "1d835f221a5ee62b1dfb22d9ea56beccb0b56428c6864ce63de5aeb946923416",
+    "docs/assignement/step4_tests/B/recalculated_station_year_month.csv": "8d2f87c67e3dcf4da77467e4cf0899abd91d164ada09d3141f17025afae93a4e",
+    "docs/assignement/step4_tests/B/sample_counts.csv": "6fc77b6485ba589849468021bcaeda7edfa173863a232d0cbe65efba1006324a",
+    "docs/assignement/step4_tests/B/supplement.json": "87d1445d98d59c10dfd0d6e9cbd73d89fc68162c84c0bbcbf6e540f3cad6d295",
+    "docs/assignement/step4_tests/B/SKILL.tested.md": "75ec80aac94f8097d7c250064eb08b5d0a42fbd55d1a6f43937c49c593772748",
+    "docs/assignement/step4_tests/B/research.tested.md": "23362f269e81848c96e3c39e98e3b024429fdee214b4af93896d4d6194106452",
+    "docs/assignement/step4_tests/B/preservation.json": "c5c6338474ce393b9c790ca91b94e96e7233f82226173ec7bb16faffb4203ae4",
+    "docs/assignement/step4_tests/B/test_record.md": "465661cbc733c61589a4b729ab00963269ff1c577af6fd077e4aefa8b8534fa1",
+    "docs/assignement/step4_tests/B/recording_verification.json": "a42ad0a0ababc7de09b3563cbd9189d35f3acc6cb5e7ab516929d99871c37ebb",
+    "docs/assignement/step4_tests/C/test_record.md": "e0a458a4e5e09d8d07087ee58cc7133da454a73f467577296ef20cb1f3d71890",
+    "docs/assignement/step4_tests/C/preservation.json": "90d267c7ed32c01306f738c2377370aab80c684c5e8c85e161c7bec1af7d9afe",
+    ".agents/skills/audit-da-comparison/SKILL.md": "fd72f8133cf2af6ba7c4f7d162f69e93fa97c4d9c03af3e5969121c405853205",
+    ".agents/skills/audit-da-comparison/references/research.md": "23362f269e81848c96e3c39e98e3b024429fdee214b4af93896d4d6194106452"
+  },
+  "protected_unchanged": true,
+  "copies_byte_identical": true,
+  "baseline_commit": "c99e648",
+  "baseline_snapshot_matches_commit": true,
+  "current_skill_matches_after_snapshot": true,
+  "report_sections_1_to_4_unchanged": true,
+  "report_sha256": "acd0a05cab35c38a74bec0336974b662ceff238e06083bc5eedab500114efaac",
+  "new_record_files": {
+    "docs/assignement/step5_one_line_20261019/retest/audit_comparison.py": "cbff134cb0044449416fbe569888d091018de07584e43e4fb8a067a4031670aa",
+    "docs/assignement/step5_one_line_20261019/retest/check_samples.py": "bc477489c9fccfa79c342ad841a00a5d2707e1434a2f4b92e9fdd84e93569dc0",
+    "docs/assignement/step5_one_line_20261019/retest/source_provenance.json": "057bdf2904b8e59b004ac1a8f1bcfdccae35d124d97df12758e94a9a92079b65",
+    "docs/assignement/step5_one_line_20261019/retest/TASK_LOG_KO.txt": "f1ad9e01305e04d00983eb2bab5428a0c36963513de2ec57cc2f3cb94ec188f5",
+    "docs/assignement/step5_one_line_20261019/retest/recalculated_station_year_month.csv": "8d2f87c67e3dcf4da77467e4cf0899abd91d164ada09d3141f17025afae93a4e",
+    "docs/assignement/step5_one_line_20261019/retest/date_support.csv": "8a0d1115b9c2a5a65d13651f425a7c462ad289c21962439dd75f14d146f83a80",
+    "docs/assignement/step5_one_line_20261019/retest/sample_counts.csv": "6fc77b6485ba589849468021bcaeda7edfa173863a232d0cbe65efba1006324a",
+    "docs/assignement/step5_one_line_20261019/retest/audit.json": "291c136b493fb59917eabd6d5de6806c14be59502118c5942fc84c596394ec72",
+    "docs/assignement/step5_one_line_20261019/retest/monthly_site_composition.csv": "1d835f221a5ee62b1dfb22d9ea56beccb0b56428c6864ce63de5aeb946923416",
+    "docs/assignement/step5_one_line_20261019/retest/supplement.json": "87d1445d98d59c10dfd0d6e9cbd73d89fc68162c84c0bbcbf6e540f3cad6d295",
+    "docs/assignement/step5_one_line_20261019/retest/SKILL.before.md": "75ec80aac94f8097d7c250064eb08b5d0a42fbd55d1a6f43937c49c593772748",
+    "docs/assignement/step5_one_line_20261019/retest/SKILL.after.md": "fd72f8133cf2af6ba7c4f7d162f69e93fa97c4d9c03af3e5969121c405853205",
+    "docs/assignement/step5_one_line_20261019/retest/RETEST_PROMPT.txt": "7414909a6a15553b05d72dacf857b2bc9dd37b2d2c2613238c6cbad98ad3608b",
+    "docs/assignement/step5_one_line_20261019/retest/test_record.md": "cb903ff164dbe63bd3f8078b0c150045d77f8f14c0bf5d7d7d12a0b51c7ec81c"
+  }
+}

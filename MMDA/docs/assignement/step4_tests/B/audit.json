@@ -1,0 +1,74 @@
+{
+  "input_files": {
+    "OL": {
+      "path": "/land1/user/gychoi/LIS/LISF_MMDA/notebooks/MMDA_longterm_qcv4_figures/cache/OL_daily_common8_c0449285a9564e7d60fa.pkl",
+      "sha256": "b7b68a14b12e652632d48d338106dd8d27c8dd9cea7b120c78ad347e63aacfe7"
+    },
+    "DA_single": {
+      "path": "/land1/user/gychoi/LIS/LISF_MMDA/notebooks/MMDA_longterm_qcv4_figures/cache/EnKF_daily_common8_a88e9a9704dd0ea2869f.pkl",
+      "sha256": "50c4e112c4a3297833178fece978c3f687e1a4ca2cae389781fd3619d3a43dcc"
+    },
+    "DA_multi": {
+      "path": "/land1/user/gychoi/LIS/LISF_MMDA/notebooks/MMDA_longterm_qcv4_figures/cache/MMDA_daily_common8_ebbf2c824bfed5661462.pkl",
+      "sha256": "ccfd4bb2b7505e770a0ab29da6f0b496bf270db6a9d8f617237db19c2720b176"
+    },
+    "ISMN": {
+      "path": "/land1/user/gychoi/LIS/LISF_MMDA/notebooks/MMDA_longterm_qcv4_figures/cache/ismn_qcv4_daily_good_c3be2e039695bdc6c539.pkl",
+      "sha256": "806a9ce93a2326def1fb05e0391d42959066c9966250145fa24079f38a0785a1"
+    },
+    "SMAP": {
+      "path": "/land1/user/gychoi/LIS/LISF_MMDA/notebooks/MMDA_longterm_qcv4_figures/cache/smap_raw_scaled_daily_6ce22505750e3d53c96a.pkl",
+      "sha256": "171852734472150c4601752dae2e4dae5fa3c38dc00237ef54380d0fb451cb2e"
+    },
+    "stations": {
+      "path": "/land1/user/gychoi/LIS/LISF_MMDA/notebooks/MMDA_paper_rebuild_20261004/main/new_20261018/unified_scaled_daily/tables/station_metrics.csv",
+      "sha256": "c710a89ba59bd0cfe5df6e37ffe7d0017420f2439d1c92b45dd0d74447ff72c8"
+    },
+    "monthly": {
+      "path": "/land1/user/gychoi/LIS/LISF_MMDA/notebooks/MMDA_paper_rebuild_20261004/main/new_20261018/unified_scaled_daily/tables/station_year_month_metrics.csv",
+      "sha256": "c0744bfdc26589b41fe646d585e1786f8db668a40849f9a73271abac581252e5"
+    },
+    "membership": {
+      "path": "/land1/user/gychoi/LIS/LISF_MMDA/notebooks/MMDA_paper_rebuild_20261004/main/new_20261018/unified_scaled_daily/monthly_sm_climatology/station_membership.csv",
+      "sha256": "c876e20b5519a6d7240b4a27f8d1f3009e7b3ce46111f9c7fb74bf962347c667"
+    },
+    "output": {
+      "path": "/land1/user/gychoi/LIS/LISF_MMDA/notebooks/MMDA_paper_rebuild_20261004/main/new_20261018/unified_scaled_daily/monthly_sm_climatology/smap_skill/monthly_same_date_skill.csv",
+      "sha256": "68fa5f131ba4218c014c77480ada59ca0216b51ddc326e6293f34608fc3a0215"
+    },
+    "notebook": {
+      "path": "/land1/user/gychoi/LIS/LISF_MMDA/notebooks/MMDA_paper_rebuild_20261004/main/new_20261018/unified_scaled_daily/monthly_sm_climatology/smap_skill/figures.ipynb",
+      "sha256": "34571a5ca25fa4f4a6051ce3799bf168d3a192c5a616fbc0bdab1785ce986a84"
+    },
+    "executed": {
+      "path": "/land1/user/gychoi/LIS/LISF_MMDA/notebooks/MMDA_paper_rebuild_20261004/main/new_20261018/unified_scaled_daily/monthly_sm_climatology/smap_skill/figures.executed.ipynb",
+      "sha256": "4e2a0f7bd0bd3d12cca486e1d2eae0894209a3a211f053c7f6b9b67b4ae0649a"
+    },
+    "source": {
+      "path": "/land1/user/gychoi/LIS/LISF_MMDA/notebooks/MMDA_paper_rebuild_20261004/main/new_20261018/unified_scaled_daily/monthly_sm_climatology/smap_skill/figures.py",
+      "sha256": "3f99e7a932721c0ef26e23796bc6602da5b4609d77cb60d8871f343b69e6c222"
+    },
+    "cache_builder": {
+      "path": "/land1/user/gychoi/LIS/LISF_MMDA/notebooks/mmda_longterm_qcv4_paper.py",
+      "sha256": "275bc6899310df56e65e8841af84fcfb50d06bcd16f55575284647a8a77ce3f9"
+    }
+  },
+  "output_row_count": 96,
+  "station_count": 356,
+  "filtered_count": 312,
+  "reconstructed_observation_months": 20401,
+  "max_absolute_errors": {
+    "ACC": 8.065770273901762e-14,
+    "ubRMSE": 9.974659986866641e-17,
+    "TE_closure": 1.3877787807814457e-17,
+    "screen_margin": 9.71445146547012e-17,
+    "group_output": 3.3306690738754696e-16
+  },
+  "original_inputs_unchanged": true,
+  "limits": [
+    "No L2/DAOBS byte-level rebuild; existing daily caches are trusted inputs.",
+    "Executed notebook was inspected, not rerun; its numerical output was independently recomputed.",
+    "All-available-year climatology is descriptive evaluation, not out-of-sample forecast validation.",
+    "Shared scaled SMAP is sourced from DA_single DAOBS, not separately from DA_multi."
+  ]
+}

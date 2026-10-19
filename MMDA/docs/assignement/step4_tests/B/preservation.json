@@ -1,0 +1,61 @@
+{
+  "report_backup": "docs/assignement/05주차_과제_보고서.before_step4_B_20261019_164910.md",
+  "files": [
+    {
+      "source": "docs/audits/smap_skill_20261019/REPORT_KO.md",
+      "preserved": "docs/assignement/step4_tests/B/REPORT_KO.md",
+      "sha256": "b4267e9c07ef187198deaf5bcbe45efda5a90822a801cb909cafc1f6a5a14c33"
+    },
+    {
+      "source": "docs/audits/smap_skill_20261019/audit.json",
+      "preserved": "docs/assignement/step4_tests/B/audit.json",
+      "sha256": "291c136b493fb59917eabd6d5de6806c14be59502118c5942fc84c596394ec72"
+    },
+    {
+      "source": "docs/audits/smap_skill_20261019/audit_comparison.py",
+      "preserved": "docs/assignement/step4_tests/B/audit_comparison.py",
+      "sha256": "cbff134cb0044449416fbe569888d091018de07584e43e4fb8a067a4031670aa"
+    },
+    {
+      "source": "docs/audits/smap_skill_20261019/check_samples.py",
+      "preserved": "docs/assignement/step4_tests/B/check_samples.py",
+      "sha256": "bc477489c9fccfa79c342ad841a00a5d2707e1434a2f4b92e9fdd84e93569dc0"
+    },
+    {
+      "source": "docs/audits/smap_skill_20261019/date_support.csv",
+      "preserved": "docs/assignement/step4_tests/B/date_support.csv",
+      "sha256": "8a0d1115b9c2a5a65d13651f425a7c462ad289c21962439dd75f14d146f83a80"
+    },
+    {
+      "source": "docs/audits/smap_skill_20261019/monthly_site_composition.csv",
+      "preserved": "docs/assignement/step4_tests/B/monthly_site_composition.csv",
+      "sha256": "1d835f221a5ee62b1dfb22d9ea56beccb0b56428c6864ce63de5aeb946923416"
+    },
+    {
+      "source": "docs/audits/smap_skill_20261019/recalculated_station_year_month.csv",
+      "preserved": "docs/assignement/step4_tests/B/recalculated_station_year_month.csv",
+      "sha256": "8d2f87c67e3dcf4da77467e4cf0899abd91d164ada09d3141f17025afae93a4e"
+    },
+    {
+      "source": "docs/audits/smap_skill_20261019/sample_counts.csv",
+      "preserved": "docs/assignement/step4_tests/B/sample_counts.csv",
+      "sha256": "6fc77b6485ba589849468021bcaeda7edfa173863a232d0cbe65efba1006324a"
+    },
+    {
+      "source": "docs/audits/smap_skill_20261019/supplement.json",
+      "preserved": "docs/assignement/step4_tests/B/supplement.json",
+      "sha256": "87d1445d98d59c10dfd0d6e9cbd73d89fc68162c84c0bbcbf6e540f3cad6d295"
+    },
+    {
+      "source": ".agents/skills/audit-da-comparison/SKILL.md",
+      "preserved": "docs/assignement/step4_tests/B/SKILL.tested.md",
+      "sha256": "75ec80aac94f8097d7c250064eb08b5d0a42fbd55d1a6f43937c49c593772748"
+    },
+    {
+      "source": ".agents/skills/audit-da-comparison/references/research.md",
+      "preserved": "docs/assignement/step4_tests/B/research.tested.md",
+      "sha256": "23362f269e81848c96e3c39e98e3b024429fdee214b4af93896d4d6194106452"
+    }
+  ],
+  "note": "Current execution artifacts copied byte-for-byte; no test rerun in this recording task."
+}

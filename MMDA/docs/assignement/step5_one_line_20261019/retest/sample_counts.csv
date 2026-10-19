@@ -1,0 +1,9 @@
+subset,sm_group,total_sites,minimum_month_N,maximum_month_N
+all,-1,356,173,349
+all,0,119,61,116
+all,1,118,29,117
+all,2,119,83,116
+filtered,-1,312,153,306
+filtered,0,104,46,103
+filtered,1,104,31,102
+filtered,2,104,76,102

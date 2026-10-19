@@ -1,0 +1,74 @@
+{
+  "notebook_matches_python": true,
+  "date_range": [
+    "2015-03-31",
+    "2025-12-30"
+  ],
+  "years": [
+    2015,
+    2025
+  ],
+  "monthly_day_range": [
+    8,
+    31
+  ],
+  "site_composition": [
+    {
+      "subset": "all",
+      "sm_group": -1,
+      "union": 356,
+      "all_12_months": 150
+    },
+    {
+      "subset": "all",
+      "sm_group": 0,
+      "union": 119,
+      "all_12_months": 51
+    },
+    {
+      "subset": "all",
+      "sm_group": 1,
+      "union": 118,
+      "all_12_months": 28
+    },
+    {
+      "subset": "all",
+      "sm_group": 2,
+      "union": 119,
+      "all_12_months": 71
+    },
+    {
+      "subset": "filtered",
+      "sm_group": -1,
+      "union": 312,
+      "all_12_months": 135
+    },
+    {
+      "subset": "filtered",
+      "sm_group": 0,
+      "union": 104,
+      "all_12_months": 41
+    },
+    {
+      "subset": "filtered",
+      "sm_group": 1,
+      "union": 104,
+      "all_12_months": 29
+    },
+    {
+      "subset": "filtered",
+      "sm_group": 2,
+      "union": 104,
+      "all_12_months": 65
+    }
+  ],
+  "max_delta_errors": {
+    "dACC_SMAP": 1.3877787807814457e-16,
+    "dubRMSE_SMAP": 1.0581813203458523e-16,
+    "dACC_DA_single": 1.5265566588595902e-16,
+    "dubRMSE_DA_single": 1.0419182877585698e-16,
+    "dACC_DA_multi": 1.3183898417423734e-16,
+    "dubRMSE_DA_multi": 1.0343288725511712e-16
+  },
+  "raw_ismn_acc_support": "ISMN+models common daily mask; SMAP climatology uses its available observation days separately"
+}

@@ -1,0 +1,78 @@
+{
+  "monthly_rows": 20401,
+  "date_min": "2015-04-01 00:00:00",
+  "date_max": "2025-12-30 00:00:00",
+  "N_range": [
+    8,
+    31
+  ],
+  "N_max_error": 0,
+  "metric_max_error": 7.244205235679146e-14,
+  "aggregate_max_error": 5.273559366969494e-16,
+  "screen_mismatches": 0,
+  "group_mismatches": 0,
+  "composition": {
+    "all": {
+      "membership": 356,
+      "monthly_N": [
+        173,
+        209,
+        262,
+        329,
+        339,
+        342,
+        339,
+        339,
+        342,
+        349,
+        305,
+        207
+      ],
+      "fixed_all_months": 150,
+      "adjacent_symmetric_difference": [
+        38,
+        59,
+        81,
+        20,
+        17,
+        7,
+        8,
+        3,
+        11,
+        52,
+        98
+      ]
+    },
+    "filtered": {
+      "membership": 312,
+      "monthly_N": [
+        153,
+        178,
+        224,
+        289,
+        298,
+        299,
+        295,
+        297,
+        300,
+        306,
+        263,
+        182
+      ],
+      "fixed_all_months": 135,
+      "adjacent_symmetric_difference": [
+        27,
+        52,
+        75,
+        17,
+        15,
+        6,
+        6,
+        3,
+        10,
+        51,
+        81
+      ]
+    }
+  }
+}

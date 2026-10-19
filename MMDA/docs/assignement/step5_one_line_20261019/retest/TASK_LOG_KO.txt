@@ -1,0 +1,27 @@
+요청: README.md와 지정 smap_skill/figures.ipynb의 날짜·표본·관측·지표 정합성 점검.
+범위: 원본 수정 없이 상위 코드 추적 및 daily cache 기반 독립 재계산.
+실행:
+/home/gychoi/anaconda3/envs/kite/bin/python docs/audits/smap_skill_20261019_recheck_01/audit_comparison.py
+/home/gychoi/anaconda3/envs/kite/bin/python docs/audits/smap_skill_20261019_recheck_01/check_samples.py
+기존 감사 스크립트를 새 작업 폴더에 복사하여 현재 입력에서 다시 실행한다.
+실제 결과: audit.json 및 supplement.json 참조. 이 두 파일의 존재와 성공 종료를 확인한 뒤 최종 보고한다.
+입력: 대상 notebook -> unified_scaled_daily/tables/station_year_month_metrics.csv 및 monthly_sm_climatology/station_membership.csv -> unified_scaled_daily/figures.py -> notebooks/mmda_longterm_qcv4_paper.py의 daily cache.
+코드 근거: 상위 figures.py:49-87(지표), 138-190(표본·screening·climatology), 530-546(월별 날짜·지표); 대상 figures.py:29-46(집계·차이); cache builder:35-48(실험·기간), 200-299(daily 집계·관측 출처).
+README는 LNETF/multi-source 개요이며 현재 MMDA 월별 평가의 상세 정의는 담지 않는다.
+평가 비교군은 OL, DA_single(EnKF-NoPert), DA_multi(pooled MMDA-NoPert), scaled SMAP이며 기준 관측은 qc_v4 ISMN이다.
+동일 월 내부의 방법 간 날짜·표본·ACC·ubRMSE 정의는 일치한다. 월당 최소 8개 공통 날짜, 비영 anomaly 분산을 요구한다.
+ACC는 전 가용 연도의 calendar-day 평균을 circular 31-day window로 평활하여 제거한 anomaly Pearson r이다. ubRMSE는 같은 날짜의 물리값 오차 std(ddof=0)이다.
+지점/월별 연도 평균 후 지점 동일 가중. Delta ACC=j-OL, Delta ubRMSE=OL-j로 양수 개선.
+해석 한계: 월마다 지점 구성이 바뀐다. 월 변화는 계절 효과와 표본 교체가 섞인다.
+SMAP은 DA_single DAOBS 두 번째 record의 scaled daily mean이며 MMDA에 실제 투입된 관측 전체를 별도 검증한 결과가 아니다.
+모델/ISMN climatology 학습일은 네 series 공통일, SMAP은 자체 가용 관측일이다. 공통 평가일과 학습일의 동일성을 혼동하면 안 된다.
+평가 연도도 climatology 학습에 포함되며 독립 예측 검증으로 해석할 수 없다.
+모델 daily 평균은 3시간 출력 8개, ISMN은 good hourly 관측의 가용값 평균이므로 하루 내 시간 coverage까지 같지는 않다.
+Assimilation support는 기존 event 기반 metadata를 사용한다(build_figures.py:166-168). 원시 event/QC 및 run config는 이번 재검산 범위 밖이다.
+원본 notebook은 출력 덮어쓰기를 피하여 재실행하지 않았다. notebook 코드와 figures.py 동일성은 별도 검사한다.
+수치 수정 필요 여부는 audit.json 허용오차 검사 결과로 판정하며, 통과 시 수정 불필요하다.
+완료 결과: 두 명령 모두 exit 0. 356개 지점(Filtered 312), 20,401개 관측일 지점·연도·월, 최종 96행 재현.
+최대 절대 차이: ACC 8.066e-14, ubRMSE 9.975e-17 m3/m3, 최종 평균 3.331e-16, Delta ACC 1.527e-16, Delta ubRMSE 1.059e-16 m3/m3. 허용오차 1e-10(차이 열 1e-12) 통과. 수치 수정 불필요.
+실제 공통 anomaly 관측일 범위 2015-03-31–2025-12-30, 월별 유효일 8–31일.
+Notebook와 대응 Python 코드 일치. 검사 입력 SHA-256 실행 전후 동일.
+월별 지점 N: All 173–349, Filtered 153–306. 모든 calendar month에 기여한 지점 교집합은 각각 150/135개(매년 완비라는 뜻 아님).

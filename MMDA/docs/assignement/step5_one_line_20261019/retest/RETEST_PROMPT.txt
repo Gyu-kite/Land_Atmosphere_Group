@@ -1,0 +1,5 @@
+$audit-da-comparison  README.md를 읽고 아래 notebook의 자료동화 성능 비교가
+  동일한 날짜·표본·관측 종류·지표 정의에 기반하는지 점검해 줘.
+
+  notebooks/MMDA_paper_rebuild_20261004/main/new_20261018/
+  unified_scaled_daily/monthly_sm_climatology/smap_skill/figures.ipynb
